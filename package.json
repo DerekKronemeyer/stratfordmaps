@@ -1,0 +1,10 @@
+{
+  "name": "stratfordmaps",
+  "private": true,
+  "description": "stratfordmaps.ca: a catalog of maps of Stratford, Prince Edward Island.",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && npx wrangler dev",
+    "deploy": "node build.mjs && npx wrangler deploy"
+  }
+}

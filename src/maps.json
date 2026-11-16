@@ -1,0 +1,174 @@
+{
+ "categories": [
+  {
+   "id": "transportation",
+   "title": "Transportation"
+  },
+  {
+   "id": "cultural",
+   "title": "Cultural"
+  },
+  {
+   "id": "recreation",
+   "title": "Recreation"
+  },
+  {
+   "id": "town-info",
+   "title": "Town Info"
+  }
+ ],
+ "maps": [
+  {
+   "slug": "at-plan",
+   "title": "AT Plan 2023",
+   "category": "transportation",
+   "description": "Projects from the Town's 2023 Active Transportation Plan, showing what's recommended and what's been completed.",
+   "source": "umap",
+   "umap": "at-plan_1",
+   "thumb": "/static/thumbs/at-plan.jpg"
+  },
+  {
+   "slug": "walking",
+   "title": "Walking",
+   "category": "transportation",
+   "description": "Walking routes, groomed winter trails, low-tide hikes and the best walks in Stratford.",
+   "source": "umap",
+   "umap": "walking_2",
+   "layers": {
+    "routes": "9cd20f4d-1dbd-491e-94ab-3be837a3a263",
+    "winter": "248eb7c8-8a3e-449b-912f-710b207922ae",
+    "best": "0419a0a0-9106-48ff-a5cc-662f8c025df5",
+    "lowtide": "f2dc22ec-cc51-40d8-abe6-917061dc8aab",
+    "crosswalks": "ff56e332-52e5-4941-b7b4-534d72f286a5",
+    "nocrosswalks": "68270f2d-be11-4f53-bf0c-6306a536bc17"
+   },
+   "thumb": "/static/thumbs/walking.jpg"
+  },
+  {
+   "slug": "biking",
+   "title": "Biking",
+   "category": "transportation",
+   "description": "Bike routes, bike parking and where to get your bike fixed.",
+   "source": "umap",
+   "umap": "biking_3",
+   "thumb": "/static/thumbs/biking.jpg"
+  },
+  {
+   "slug": "public-transit",
+   "title": "Public Transit",
+   "category": "transportation",
+   "description": "T3 Transit's route map (PDF, opens on T3's website).",
+   "source": "external",
+   "url": "https://www.t3transit.ca/_files/ugd/12806a_482371d3a4004d748054fca6b2743d2b.pdf",
+   "thumb": "/static/thumbs/public-transit.jpg"
+  },
+  {
+   "slug": "streets",
+   "title": "Streets",
+   "category": "transportation",
+   "description": "Every street in town by type, paving and name suffix, plus roundabouts and traffic lights.",
+   "source": "umap",
+   "umap": "streets_4",
+   "thumb": "/static/thumbs/streets.jpg"
+  },
+  {
+   "slug": "aerial-photos",
+   "title": "Historical Aerial Photos",
+   "category": "cultural",
+   "description": "Find the Province's air photos of Stratford from 1958 to 2020.",
+   "source": "umap",
+   "umap": "aerial-photos_5",
+   "thumb": "/static/thumbs/aerial-photos.jpg"
+  },
+  {
+   "slug": "heritage",
+   "title": "Heritage",
+   "category": "cultural",
+   "description": "Historic places, monuments and graveyards.",
+   "source": "umap",
+   "umap": "heritage_6",
+   "thumb": "/static/thumbs/heritage.jpg"
+  },
+  {
+   "slug": "community-resources",
+   "title": "Community Resources",
+   "category": "cultural",
+   "description": "Little free libraries, places of worship and food resources.",
+   "source": "umap",
+   "umap": "community-resources_7",
+   "thumb": "/static/thumbs/community-resources.jpg"
+  },
+  {
+   "slug": "parks",
+   "title": "Parks / Shore Access",
+   "category": "recreation",
+   "description": "Parks, park entrances, playgrounds and public access to the shore.",
+   "source": "umap",
+   "umap": "parks_8",
+   "thumb": "/static/thumbs/parks.jpg"
+  },
+  {
+   "slug": "sports",
+   "title": "Sports",
+   "category": "recreation",
+   "description": "Fields, courts, the rink, skate park, disc golf, splash pad and more.",
+   "source": "umap",
+   "umap": "sports_9",
+   "thumb": "/static/thumbs/sports.jpg"
+  },
+  {
+   "slug": "public-art",
+   "title": "Public Art",
+   "category": "recreation",
+   "description": "Statues, murals and galleries around town.",
+   "source": "umap",
+   "umap": "public-art_10",
+   "thumb": "/static/thumbs/public-art.jpg"
+  },
+  {
+   "slug": "house-stats",
+   "title": "House Stats",
+   "category": "town-info",
+   "description": "Homes that sold for $1M+, plus pools, solar panels and waterfront properties.",
+   "source": "umap",
+   "umap": "house-stats_11",
+   "thumb": "/static/thumbs/house-stats.jpg"
+  },
+  {
+   "slug": "housing-density",
+   "title": "Housing Density",
+   "category": "town-info",
+   "description": "Every residential building in town, colour-coded by number of units.",
+   "source": "umap",
+   "umap": "housing-density_12",
+   "thumb": "/static/thumbs/housing-density.jpg"
+  },
+  {
+   "slug": "wards",
+   "title": "Municipal Wards",
+   "category": "town-info",
+   "description": "Stratford's three wards and their polling districts.",
+   "source": "umap",
+   "umap": "wards_13",
+   "thumb": "/static/thumbs/wards.jpg"
+  },
+  {
+   "slug": "short-term-rentals",
+   "title": "Short Term Rentals",
+   "category": "town-info",
+   "description": "Airbnb, VRBO and Booking.com listings in Stratford (as of Dec 2025).",
+   "source": "umap",
+   "umap": "short-term-rentals_14",
+   "thumb": "/static/thumbs/short-term-rentals.jpg"
+  },
+  {
+   "slug": "postal-services",
+   "title": "Postal Services",
+   "category": "town-info",
+   "description": "Mailboxes and post offices.",
+   "source": "umap",
+   "umap": "postal-services_15",
+   "thumb": "/static/thumbs/postal-services.jpg"
+  }
+ ]
+}

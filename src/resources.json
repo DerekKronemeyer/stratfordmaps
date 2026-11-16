@@ -1,0 +1,13 @@
+[
+  { "group": "Stratford and PEI", "title": "Town of Stratford Maps", "url": "https://townofstratford.ca/resident-services/maps/", "description": "Maps provided by the Town of Stratford." },
+  { "group": "Stratford and PEI", "title": "Civic Address Locator Map", "url": "https://www.princeedwardisland.ca/en/feature/civic-address-locator-map/#/service/CivicAddressLocatorMap/CivicAddressLocatorMap", "description": "Useful information associated with each civic address in Prince Edward Island." },
+  { "group": "Stratford and PEI", "title": "PEI Real Estate Stats", "url": "https://www.pei.realestate/stats/stats", "description": "PEI housing market explained." },
+  { "group": "Other tools", "title": "My Old Apartment", "url": "https://myoldapartment.org/", "description": "A rental registry run by tenants, for tenants." },
+  { "group": "Other tools", "title": "Google Earth", "url": "https://earth.google.com/web/@46.22046225,-63.07402338,25.02334859a,14755.89514215d,35y,0.00030683h,5.48276555t,359.99999829r/data=CgRCAggBOgMKATBCAggASg0I____________ARAA", "description": "Look back at historical satellite imagery." },
+  { "group": "Stratford and PEI", "title": "Aerial Photo Index Map", "url": "https://www.princeedwardisland.ca/en/feature/aerial-photo-index-map/#/service/AerialPhotoIndexMap/AerialPhotoIndexMap", "description": "Multiple years of land images from the Corporate Land Use Inventory Project." },
+  { "group": "Stratford and PEI", "title": "GeoPEI", "url": "https://experience.arcgis.com/experience/9870ec990eaa40069f772b7025fbd18c/page/Page", "description": "Mapping rural land use change in PEI." },
+  { "group": "Stratford and PEI", "title": "PEI Agriculture Application", "url": "https://www.arcgis.com/apps/webappviewer/index.html?id=e0d12b6f54a4487096262fd49534046a", "description": "Property parcels map." },
+  { "group": "Stratford and PEI", "title": "Elections PEI Information Map", "url": "https://www.electionspei.ca/provincial-election-by-elections/feature/election-information-map#/service/ViewElectionMap/ViewElectionMap", "description": "Find electoral district and polling information for upcoming elections in PEI." },
+  { "group": "Other tools", "title": "Housing and Infrastructure Project Map", "url": "https://housing-infrastructure.canada.ca/gmap-gcarte/index-eng.html", "description": "Housing and infrastructure projects funded by the Government of Canada." },
+  { "group": "Other tools", "title": "Strava Global Heatmap", "url": "https://www.strava.com/maps/global-heatmap", "description": "Heatmap of walking, running and cycling routes." }
+]

@@ -1,0 +1,10 @@
+{
+  // Static site on Cloudflare Workers. Build: `node build.mjs` → dist/. Deploy: `npx wrangler deploy`.
+  "name": "stratfordmaps",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "drop-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}
