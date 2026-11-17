@@ -122,6 +122,31 @@
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }), 'top-right');
     if (document.fullscreenEnabled) map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+    // Background switcher: its own button under the map controls, opening a small menu beside it.
+    class BackgroundControl {
+      onAdd() {
+        this.el = document.createElement('div');
+        this.el.className = 'maplibregl-ctrl bg-ctrl';
+        this.el.innerHTML = `<div class="maplibregl-ctrl-group"><button type="button" class="bg-btn" aria-label="Background" title="Background" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m3 16 5-5 4 4 3-3 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="9.5" r="1.6" fill="currentColor"/></svg></button></div>
+<div class="bg-menu" role="menu" hidden>${Object.entries(bases).map(([k, b]) => `<button type="button" role="menuitemradio" data-base="${k}" aria-checked="${k === startBase}">${esc(b.name)}</button>`).join('')}</div>`;
+        const btn = this.el.querySelector('.bg-btn');
+        const menu = this.el.querySelector('.bg-menu');
+        const open = (on) => { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
+        btn.addEventListener('click', () => open(menu.hidden));
+        menu.addEventListener('click', (e) => {
+          const pick = e.target.closest('[data-base]');
+          if (!pick) return;
+          for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', k === pick.dataset.base ? 'visible' : 'none');
+          for (const b of menu.querySelectorAll('[data-base]')) b.setAttribute('aria-checked', String(b === pick));
+          open(false);
+        });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
+        map.on('click', () => open(false));
+        return this.el;
+      }
+      onRemove() { this.el.remove(); }
+    }
+    map.addControl(new BackgroundControl(), 'top-right');
 
     // ---------- Drawing the layers ----------
 
@@ -273,11 +298,10 @@
       return `<span class="sw ${cls}" style="--c:${esc(l.kind === 'area' ? l.fillColor || l.color : l.color)}"></span>`;
     };
     const keyPanel = document.getElementById('key-panel');
-    let base = startBase;
     // Checkboxes normally; radio buttons on one-layer maps, so picking a layer switches off the last one.
     const layerInput = cfg.oneLayer ? 'type="radio" name="layer"' : 'type="checkbox"';
     const layersHtml = () => `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).join('')}</fieldset>
-${done ? `<fieldset class="basemaps"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}`;
+${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {
       const doneCount = c.features.filter((f) => isDone(f.properties)).length;
@@ -297,8 +321,7 @@ ${done ? `<fieldset class="basemaps"><legend>Show</legend>${[['all', 'All'], ['p
     function renderKey() {
       const toggle = cfg.components ? `<div class="mode-toggle" role="group" aria-label="Map key view">${[['layers', 'Layers'], ['components', cfg.components.label]].map(([k, label]) => `<button type="button" data-mode="${k}" aria-pressed="${mode === k}">${esc(label)}</button>`).join('')}</div>` : '';
       keyPanel.classList.toggle('map-panel--wide', mode === 'components');
-      keyPanel.innerHTML = `${toggle}${mode === 'components' ? compsHtml() : layersHtml()}
-<fieldset class="basemaps"><legend>Background</legend>${Object.entries(bases).map(([k, b]) => `<label><input type="radio" name="base" value="${k}"${k === base ? ' checked' : ''}><span>${b.name}</span></label>`).join('')}</fieldset>`;
+      keyPanel.innerHTML = `${toggle}${mode === 'components' ? compsHtml() : layersHtml()}`;
       syncAll();
     }
     renderKey();
@@ -312,10 +335,6 @@ ${done ? `<fieldset class="basemaps"><legend>Show</legend>${[['all', 'All'], ['p
         picked = new Set(t.checked ? comps.keys() : []);
         for (const box of keyPanel.querySelectorAll('[data-comp]')) box.checked = t.checked;
         refresh();
-      }
-      if (t.name === 'base') {
-        base = t.value;
-        for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', k === t.value ? 'visible' : 'none');
       }
     });
     keyPanel.addEventListener('click', (e) => {
