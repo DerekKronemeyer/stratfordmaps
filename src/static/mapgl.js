@@ -193,7 +193,8 @@
       if (t.dataset.i) setLayer(data.layers[+t.dataset.i], t.checked);
       if (t.name === 'base') for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', k === t.value ? 'visible' : 'none');
     });
-    document.getElementById('info-panel').innerHTML = `<p>${esc(cfg.description)}</p>`;
+    const updated = data.updated ? new Date(data.updated).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Halifax' }) : '';
+    document.getElementById('info-panel').innerHTML = `<p>${esc(cfg.description)}</p>${updated ? `<p class="updated">Updated ${updated}</p>` : ''}`;
 
     // Each button opens and closes its own panel; opening one closes the other.
     const buttons = [...document.querySelectorAll('.map-buttons button')];

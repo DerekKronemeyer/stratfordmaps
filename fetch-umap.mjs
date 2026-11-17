@@ -105,6 +105,8 @@ for (const m of targets) {
     name: map.name,
     center: map.center ? [map.center[0], map.center[1]] : null,
     zoom: map.zoom ?? 14,
+    // Last edit in uMap: the newest of the map's own save time and each layer's version (a save timestamp in ms).
+    updated: new Date(Math.max(Date.parse(map.modified_at) || 0, ...map.datalayers.map((dl) => Number(dl.referenceVersion) || 0))).toISOString(),
     basemap: t ? { name: t.name, url: t.url_template, attribution: t.attribution, maxzoom: t.maxNativeZoom || t.maxZoom || 19 } : null,
     layers,
   };
