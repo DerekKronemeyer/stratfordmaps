@@ -106,7 +106,6 @@ for (const m of targets) {
     center: map.center ? [map.center[0], map.center[1]] : null,
     zoom: map.zoom ?? 14,
     basemap: t ? { name: t.name, url: t.url_template, attribution: t.attribution, maxzoom: t.maxNativeZoom || t.maxZoom || 19 } : null,
-    fetched: new Date().toISOString(),
     layers,
   };
   mkdirSync(DATA, { recursive: true });
