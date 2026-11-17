@@ -53,6 +53,11 @@
       // Pins for Drop/Default markers; plain dots for "Circle" layers and very dense ones.
       l.pins = kinds.has('point') && l.iconClass !== 'Circle' && l.iconClass !== 'Dot' && l.features.length <= 400;
     }
+    // One-layer maps (oneLayer in maps.json) show a single layer at a time: the first one switched on.
+    if (cfg.oneLayer) {
+      const first = data.layers.find((l) => l.show) || data.layers[0];
+      for (const l of data.layers) l.show = l === first;
+    }
     // Phones are too narrow for the desktop view, so they start framed on what's switched on instead.
     const shownPts = data.layers.filter((l) => l.show).flatMap((l) => l.features.flatMap((f) => allCoords(f.geometry.coordinates)));
     const fit = narrow && !focusId && shownPts.length > 1
@@ -186,11 +191,14 @@
       return `<span class="sw ${cls}" style="--c:${esc(l.kind === 'area' ? l.fillColor || l.color : l.color)}"></span>`;
     };
     const keyPanel = document.getElementById('key-panel');
-    keyPanel.innerHTML = `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input type="checkbox" data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).join('')}</fieldset>
+    // Checkboxes normally; radio buttons on one-layer maps, so picking a layer switches off the last one.
+    const layerInput = cfg.oneLayer ? 'type="radio" name="layer"' : 'type="checkbox"';
+    keyPanel.innerHTML = `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).join('')}</fieldset>
 <fieldset class="basemaps"><legend>Background</legend>${Object.entries(bases).map(([k, b]) => `<label><input type="radio" name="base" value="${k}"${k === startBase ? ' checked' : ''}><span>${b.name}</span></label>`).join('')}</fieldset>`;
     keyPanel.addEventListener('change', (e) => {
       const t = e.target;
-      if (t.dataset.i) setLayer(data.layers[+t.dataset.i], t.checked);
+      if (t.dataset.i && cfg.oneLayer) data.layers.forEach((l, i) => setLayer(l, i === +t.dataset.i));
+      else if (t.dataset.i) setLayer(data.layers[+t.dataset.i], t.checked);
       if (t.name === 'base') for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', k === t.value ? 'visible' : 'none');
     });
     const updated = data.updated ? new Date(data.updated).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Halifax' }) : '';

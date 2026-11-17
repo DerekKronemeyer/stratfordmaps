@@ -78,6 +78,7 @@
    "description": "Find the Province's air photos of Stratford from 1958 to 2020.",
    "source": "umap",
    "umap": "aerial-photos_5",
+   "oneLayer": true,
    "thumb": "/static/thumbs/aerial-photos.jpg"
   },
   {
