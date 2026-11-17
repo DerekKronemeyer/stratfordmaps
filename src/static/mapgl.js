@@ -6,14 +6,23 @@
   const narrow = window.matchMedia('(max-width: 700px)').matches;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const link = (u, label) => `<a href="${u}" target="_blank" rel="noopener">${label}</a>`;
-  // uMap text: {{image url}}, [[url|label]] links, bare URLs, **bold**, *italic*, line breaks.
+  // A block of lines that all start with "- " or "1. " becomes a list; anything else a paragraph.
+  const block = (p) => {
+    const lines = p.split('\n');
+    if (lines.every((x) => /^- /.test(x))) return `<ul>${lines.map((x) => `<li>${x.slice(2)}</li>`).join('')}</ul>`;
+    if (lines.every((x) => /^\d+\. /.test(x))) return `<ol>${lines.map((x) => `<li>${x.replace(/^\d+\. /, '')}</li>`).join('')}</ol>`;
+    // A bold heading line followed by a list: "**Implementation**\n1. ...".
+    if (lines.length > 1 && /^<strong>[^<]+<\/strong>$/.test(lines[0])) return `<p class="h">${lines[0]}</p>${block(lines.slice(1).join('\n'))}`;
+    return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+  };
+  // uMap text: {{image url}}, [[url|label]] links, bare URLs, **bold**, *italic*, lists, line breaks.
   const richText = (s) => esc(s)
     .replace(/\{\{((?:https?:\/\/|\/)[^}\s]+)\}\}/g, '<img src="$1" alt="" loading="lazy">')
     .replace(/\[\[(https?:\/\/[^|\]]+)\|([^\]]+)\]\]/g, (_, u, t) => link(u, t))
     .replace(/\[\[(https?:\/\/[^\]]+)\]\]/g, (_, u) => link(u, u))
     .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_, pre, u) => `${pre}${link(u, u.replace(/^https?:\/\/(www\.)?/, '').replace(/[/?#].*$/, ''))}`)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-    .split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+    .split(/\n{2,}/).map(block).join('');
   // A field value: links show just their domain; everything else is plain text.
   const valueHtml = (v) => (/^https?:\/\/\S+$/.test(v) ? link(esc(v), esc(v.replace(/^https?:\/\/(www\.)?/, '').replace(/[/?#].*$/, ''))) : esc(v));
 
@@ -91,6 +100,7 @@
     const layerOf = {}; // MapLibre layer id -> our layer
     // A feature's own style if it has one, otherwise the layer's.
     const style = (key, fallback) => ['coalesce', ['get', `_${key}`], fallback];
+    const outlineOf = (l) => (cfg.outline || {})[l.key] || ''; // edge colour for this layer, if any
 
     map.on('load', () => {
       // Start with the credits collapsed to the (i) button; MapLibre opens them on load.
@@ -112,8 +122,13 @@
         if (!l.features.some((f) => kindOf(f.geometry) === 'line')) continue;
         const isLine = ['match', ['geometry-type'], ['LineString', 'MultiLineString'], true, false];
         const rounded = { 'line-join': 'round', 'line-cap': 'round' };
-        // A thin dark edge under each line keeps it readable on the aerial photo.
-        add(l, { id: `${l.key}-casing`, type: 'line', filter: isLine, layout: rounded, paint: { 'line-color': '#111', 'line-opacity': 0.5, 'line-width': ['+', style('weight', l.weight), 3] } });
+        // A thin dark edge under each line keeps it readable on the aerial photo. Layers listed in
+        // `outline` (maps.json) get a wider edge in that colour instead, e.g. green for completed projects.
+        const edge = outlineOf(l);
+        const casing = edge
+          ? { 'line-color': edge, 'line-opacity': 1, 'line-width': ['+', style('weight', l.weight), 6] }
+          : { 'line-color': '#111', 'line-opacity': 0.5, 'line-width': ['+', style('weight', l.weight), 3] };
+        add(l, { id: `${l.key}-casing`, type: 'line', filter: isLine, layout: rounded, paint: casing });
         add(l, { id: `${l.key}-line`, type: 'line', filter: isLine, layout: rounded, paint: { 'line-color': style('color', l.color), 'line-opacity': style('opacity', l.opacity), 'line-width': style('weight', l.weight) } }, true);
       }
       for (const l of data.layers) {
@@ -129,6 +144,7 @@
           el.type = 'button';
           el.className = 'pin';
           el.style.setProperty('--pin-color', p._color || l.color);
+          if (outlineOf(l)) el.style.setProperty('--pin-ring', outlineOf(l));
           el.innerHTML = `<span class="pin-head"><b>${esc(emojiOf(p._iconUrl || l.iconUrl))}</b></span>${l.showLabel && p.name ? `<span class="pin-label">${esc(p.name)}</span>` : ''}`;
           el.setAttribute('aria-label', p.name || l.name);
           if (!hasContent(l, p)) el.style.cursor = 'default';
@@ -169,7 +185,7 @@
       if (!hasContent(l, p)) return;
       const rows = extraFields(l, p).map((k) => `<tr><th>${esc(k)}</th><td>${valueHtml(String(p[k]))}</td></tr>`).join('');
       popup?.remove();
-      popup = new maplibregl.Popup({ maxWidth: '340px', offset: f.geometry.type === 'Point' && l.pins ? PIN_OFFSET : 8 })
+      popup = new maplibregl.Popup({ maxWidth: '340px', focusAfterOpen: false, offset: f.geometry.type === 'Point' && l.pins ? PIN_OFFSET : 8 })
         .setLngLat(at)
         .setHTML(`${p.name ? `<h3>${esc(p.name).replace(/\n/g, '<br>')}</h3>` : ''}${rows ? `<table>${rows}</table>` : ''}${p.description ? richText(p.description) : ''}`)
         .addTo(map);
@@ -185,6 +201,7 @@
 
     // The little sample beside each layer name: its emoji, or a patch of its line, area or dot colour.
     const swatch = (l) => {
+      if (outlineOf(l)) return `<span class="sw sw-line sw-outlined" style="--c:#9aa0a6;--ring:${esc(outlineOf(l))}"></span>`;
       const icon = l.pins ? emojiOf(l.iconUrl) : '';
       if (icon) return `<span class="sw sw-icon">${esc(icon)}</span>`;
       const cls = { area: 'sw-area', line: 'sw-line', point: 'sw-dot' }[l.kind];

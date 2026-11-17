@@ -107,10 +107,11 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .sw-line { width: 22px; height: 5px; border-radius: 3px; }
 .sw-dot { width: 12px; height: 12px; margin: 0 5px; border-radius: 50%; border: 2px solid #fff; }
 .sw-area { width: 18px; height: 14px; margin: 0 2px; border-radius: 3px; border: 2px solid var(--c); background: color-mix(in srgb, var(--c) 45%, transparent); }
+.sw-outlined { box-shadow: 0 0 0 2px var(--ring); margin: 0 2px; width: 18px; }
 .sw-icon { width: 22px; text-align: center; background: none; font-size: 1rem; line-height: 1; }
 /* Pins, popups and MapLibre's own controls, restyled to match the dark theme */
 .pin { display: flex; flex-direction: column; align-items: center; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; }
-.pin-head { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--pin-color); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.45); color: #1f2125; font-weight: 700; font-size: 0.8rem; margin-bottom: 4px; }
+.pin-head { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--pin-color); border: 2px solid var(--pin-ring, #fff); box-shadow: 0 2px 6px rgba(0,0,0,.45); color: #1f2125; font-weight: 700; font-size: 0.8rem; margin-bottom: 4px; }
 .pin-head b { transform: rotate(45deg); line-height: 1; }
 .pin-head b:not(:empty) { font-size: 0.85rem; }
 .pin-label { position: absolute; left: 30px; top: 2px; white-space: nowrap; padding: 2px 7px; border-radius: 6px; background: rgba(31,33,37,.85); color: var(--text); font-size: 0.8rem; font-weight: 600; pointer-events: none; }
@@ -118,6 +119,10 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .maplibregl-popup-content h3 { margin: 0 24px 6px 0; font-size: 1rem; }
 .maplibregl-popup-content p { margin: 0 0 8px; color: var(--muted); }
 .maplibregl-popup-content p:last-child { margin-bottom: 0; }
+.maplibregl-popup-content p.h { margin: 12px 0 4px; color: var(--text); }
+.maplibregl-popup-content ul, .maplibregl-popup-content ol { margin: 0 0 8px; padding-left: 20px; color: var(--muted); }
+.maplibregl-popup-content li { margin: 2px 0; }
+.pin[style*="--pin-ring"] .pin-head { border-width: 3px; }
 .maplibregl-popup-content img { display: block; width: 100%; height: auto; border-radius: 6px; margin-top: 4px; }
 .maplibregl-popup-content table { border-collapse: collapse; margin: 0 0 8px; font-size: 0.85rem; }
 .maplibregl-popup-content th { text-align: left; font-weight: 600; color: var(--muted); padding: 2px 12px 2px 0; vertical-align: top; white-space: nowrap; }
