@@ -57,6 +57,8 @@
   const emojiOf = (icon) => (icon && [...icon].length <= 4 && !/^https?:|\//.test(icon) ? icon : '');
 
   fetch(cfg.data).then((r) => r.json()).then((data) => {
+    // How the map looks when it first opens, so switching Map key modes can return to it.
+    const defaultShow = data.layers.map((l, i) => (cfg.oneLayer ? i === Math.max(0, data.layers.findIndex((x) => x.show !== false)) : l.show !== false));
     const wanted = (params.get('layers') || '').split(',').map((s) => s.trim()).filter(Boolean);
     const focusId = params.get('feature');
     for (const l of data.layers) {
@@ -77,6 +79,25 @@
     const fit = narrow && !focusId && shownPts.length > 1
       ? shownPts.reduce(([[w, s], [e, n]], [x, y]) => [[Math.min(w, x), Math.min(s, y)], [Math.max(e, x), Math.max(n, y)]], [[180, 90], [-180, -90]])
       : null;
+    // Network components (`components` in maps.json): every feature is grouped by its name, keyed by the
+    // part before ":" ("F14: Intersection..." -> f14), as used in links like ?components=f2,f14.
+    const slug = (s) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const comps = new Map();
+    if (cfg.components) {
+      for (const l of data.layers) for (const f of l.features) {
+        const p = f.properties;
+        if (!p.name) continue;
+        p._comp = slug(String(p.name).split(':')[0]);
+        if (!comps.has(p._comp)) comps.set(p._comp, { key: p._comp, name: p.name, color: p._color || l.color, features: [] });
+        comps.get(p._comp).features.push(f);
+      }
+    }
+    const compList = [...comps.values()].sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
+    const linkComps = (params.get('components') || '').split(',').map((s) => s.trim().toLowerCase()).filter((k) => comps.has(k));
+    let mode = linkComps.length ? 'components' : 'layers'; // which list the Map key shows
+    let picked = new Set(linkComps.length ? linkComps : comps.keys()); // components ticked in that list
+    const boundsOf = (features) => features.flatMap((f) => allCoords(f.geometry.coordinates))
+      .reduce(([[w, s], [e, n]], [x, y]) => [[Math.min(w, x), Math.min(s, y)], [Math.max(e, x), Math.max(n, y)]], [[180, 90], [-180, -90]]);
     // Show: all, planned (not done) or completed features. ?show=completed in a link picks one.
     let showMode = done && ['planned', 'completed'].includes(params.get('show')) ? params.get('show') : 'all';
     const showOk = (p) => showMode === 'all' || (showMode === 'completed') === isDone(p);
@@ -109,7 +130,18 @@
     const layerOf = {}; // MapLibre layer id -> our layer
     // A feature's own style if it has one, otherwise the layer's.
     const style = (key, fallback) => ['coalesce', ['get', `_${key}`], fallback];
-    const baseFilter = {}; // MapLibre layer id -> its geometry filter (the show filter is added on top)
+    const baseFilter = {}; // MapLibre layer id -> its geometry filter (the show or component filter is added on top)
+    // What is visible: in Layers mode the layer checkboxes and Show choice; in components mode the ticked components.
+    const extraFilter = () => (mode === 'components' ? ['in', ['get', '_comp'], ['literal', [...picked]]] : showFilter());
+    const layerVisible = (l) => mode === 'components' || l.show;
+    const featureShown = (l, p) => (mode === 'components' ? picked.has(p._comp) : l.show && showOk(p));
+    function refresh() {
+      for (const [id, filter] of Object.entries(baseFilter)) {
+        map.setFilter(id, ['all', filter, extraFilter()]);
+        map.setLayoutProperty(id, 'visibility', layerVisible(layerOf[id]) ? 'visible' : 'none');
+      }
+      for (const l of data.layers) for (const { f, mk } of markers[l.key] || []) featureShown(l, f.properties) ? mk.addTo(map) : mk.remove();
+    }
 
     map.on('load', () => {
       // Start with the credits collapsed to the (i) button; MapLibre opens them on load.
@@ -118,7 +150,7 @@
       for (const l of data.layers) map.addSource(`src-${l.key}`, { type: 'geojson', data: { type: 'FeatureCollection', features: l.features } });
       const add = (l, spec, click) => {
         baseFilter[spec.id] = spec.filter;
-        map.addLayer({ ...spec, filter: ['all', spec.filter, showFilter()], source: `src-${l.key}`, layout: { ...(spec.layout || {}), visibility: l.show ? 'visible' : 'none' } });
+        map.addLayer({ ...spec, filter: ['all', spec.filter, extraFilter()], source: `src-${l.key}`, layout: { ...(spec.layout || {}), visibility: layerVisible(l) ? 'visible' : 'none' } });
         layerOf[spec.id] = l;
         if (click) clickable.unshift(spec.id);
       };
@@ -161,7 +193,7 @@
           if (!hasContent(l, p)) el.style.cursor = 'default';
           el.addEventListener('click', (e) => { e.stopPropagation(); showPopup(l, f, f.geometry.coordinates); });
           const mk = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat(f.geometry.coordinates);
-          if (l.show && showOk(p)) mk.addTo(map);
+          if (featureShown(l, p)) mk.addTo(map);
           return { f, mk };
         });
       }
@@ -173,6 +205,8 @@
       });
       map.on('mousemove', (e) => { map.getCanvas().style.cursor = hitAt(e.point) ? 'pointer' : ''; });
 
+      // A shared link to some network components: frame them.
+      if (linkComps.length) zoomTo(linkComps.flatMap((k) => comps.get(k).features), false);
       // A shared link to one feature: centre on it and open its popup.
       if (focusId) {
         for (const l of data.layers) {
@@ -213,15 +247,22 @@
 
     // ---------- Map key and Info panels ----------
 
-    function setLayer(l, on) {
-      l.show = on;
-      for (const suffix of ['fill', 'outline', 'casing', 'line', 'point']) if (map.getLayer(`${l.key}-${suffix}`)) map.setLayoutProperty(`${l.key}-${suffix}`, 'visibility', on ? 'visible' : 'none');
-      for (const { f, mk } of markers[l.key] || []) on && showOk(f.properties) ? mk.addTo(map) : mk.remove();
+    function setLayer(l, on) { l.show = on; refresh(); }
+    function setShow(value) { showMode = value; refresh(); }
+
+    // Frame some features, leaving room for the Map key on desktop.
+    function zoomTo(features, animate = true) {
+      const padding = narrow ? 40 : { top: 60, bottom: 60, left: 360, right: 60 };
+      map.fitBounds(boundsOf(features), { padding, maxZoom: 17, animate });
     }
-    function setShow(mode) {
-      showMode = mode;
-      for (const [id, filter] of Object.entries(baseFilter)) map.setFilter(id, ['all', filter, showFilter()]);
-      for (const l of data.layers) setLayer(l, l.show);
+    // Back to how the selections first open: default layers, Show all, every component ticked.
+    // The map stays where it is.
+    function resetView() {
+      popup?.remove();
+      data.layers.forEach((l, i) => { l.show = defaultShow[i]; });
+      showMode = 'all';
+      picked = new Set(comps.keys());
+      refresh();
     }
 
     // The little sample beside each layer name: its emoji, or a patch of its line, area or dot colour.
@@ -232,17 +273,61 @@
       return `<span class="sw ${cls}" style="--c:${esc(l.kind === 'area' ? l.fillColor || l.color : l.color)}"></span>`;
     };
     const keyPanel = document.getElementById('key-panel');
+    let base = startBase;
     // Checkboxes normally; radio buttons on one-layer maps, so picking a layer switches off the last one.
     const layerInput = cfg.oneLayer ? 'type="radio" name="layer"' : 'type="checkbox"';
-    keyPanel.innerHTML = `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).join('')}</fieldset>
-${done ? `<fieldset class="basemaps"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}
-<fieldset class="basemaps"><legend>Background</legend>${Object.entries(bases).map(([k, b]) => `<label><input type="radio" name="base" value="${k}"${k === startBase ? ' checked' : ''}><span>${b.name}</span></label>`).join('')}</fieldset>`;
+    const layersHtml = () => `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).join('')}</fieldset>
+${done ? `<fieldset class="basemaps"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}`;
+    // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
+    const compRow = (c) => {
+      const doneCount = c.features.filter((f) => isDone(f.properties)).length;
+      const tick = !doneCount ? '' : `<span class="comp-done${doneCount < c.features.length ? ' part' : ''}" title="${doneCount < c.features.length ? 'Partly completed' : 'Completed'}">✓</span>`;
+      const [num, ...rest] = String(c.name).split(':');
+      const label = rest.length ? `<b>${esc(num)}</b><span>${esc(rest.join(':').trim())}</span>` : esc(c.name);
+      const kind = c.features.every((f) => f.geometry.type === 'Point') ? 'sw-dot' : 'sw-line';
+      return `<div class="comp"><input type="checkbox" data-comp="${esc(c.key)}" aria-label="Show ${esc(c.name)}"${picked.has(c.key) ? ' checked' : ''}><span class="sw ${kind}" style="--c:${esc(c.color)}"></span><button type="button" class="comp-name" data-zoom="${esc(c.key)}" title="Zoom to this">${label}</button>${tick}</div>`;
+    };
+    const compsHtml = () => `<fieldset class="comps"><legend>${esc(cfg.components.label)}</legend><label class="comp-all"><input type="checkbox" data-all><span>Show all</span></label>${compList.map(compRow).join('')}</fieldset>`;
+    const syncAll = () => {
+      const all = keyPanel.querySelector('[data-all]');
+      if (!all) return;
+      all.checked = picked.size === comps.size;
+      all.indeterminate = picked.size > 0 && picked.size < comps.size;
+    };
+    function renderKey() {
+      const toggle = cfg.components ? `<div class="mode-toggle" role="group" aria-label="Map key view">${[['layers', 'Layers'], ['components', cfg.components.label]].map(([k, label]) => `<button type="button" data-mode="${k}" aria-pressed="${mode === k}">${esc(label)}</button>`).join('')}</div>` : '';
+      keyPanel.classList.toggle('map-panel--wide', mode === 'components');
+      keyPanel.innerHTML = `${toggle}${mode === 'components' ? compsHtml() : layersHtml()}
+<fieldset class="basemaps"><legend>Background</legend>${Object.entries(bases).map(([k, b]) => `<label><input type="radio" name="base" value="${k}"${k === base ? ' checked' : ''}><span>${b.name}</span></label>`).join('')}</fieldset>`;
+      syncAll();
+    }
+    renderKey();
     keyPanel.addEventListener('change', (e) => {
       const t = e.target;
       if (t.dataset.i && cfg.oneLayer) data.layers.forEach((l, i) => setLayer(l, i === +t.dataset.i));
       else if (t.dataset.i) setLayer(data.layers[+t.dataset.i], t.checked);
       if (t.name === 'show') setShow(t.value);
-      if (t.name === 'base') for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', k === t.value ? 'visible' : 'none');
+      if (t.dataset.comp) { t.checked ? picked.add(t.dataset.comp) : picked.delete(t.dataset.comp); refresh(); syncAll(); }
+      if (t.dataset.all !== undefined) {
+        picked = new Set(t.checked ? comps.keys() : []);
+        for (const box of keyPanel.querySelectorAll('[data-comp]')) box.checked = t.checked;
+        refresh();
+      }
+      if (t.name === 'base') {
+        base = t.value;
+        for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', k === t.value ? 'visible' : 'none');
+      }
+    });
+    keyPanel.addEventListener('click', (e) => {
+      const modeBtn = e.target.closest('[data-mode]');
+      if (modeBtn && modeBtn.dataset.mode !== mode) { mode = modeBtn.dataset.mode; resetView(); renderKey(); }
+      const zoomBtn = e.target.closest('[data-zoom]');
+      if (zoomBtn) {
+        const key = zoomBtn.dataset.zoom;
+        if (!picked.has(key)) { picked.add(key); keyPanel.querySelector(`[data-comp="${key}"]`).checked = true; refresh(); syncAll(); }
+        zoomTo(comps.get(key).features);
+        if (narrow) show(null); // phones: get the panel out of the way of the map
+      }
     });
     const updated = data.updated ? new Date(data.updated).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Halifax' }) : '';
     // The map's description from uMap (links allowed), or the card text if uMap has none.

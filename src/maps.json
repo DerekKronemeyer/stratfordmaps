@@ -26,6 +26,7 @@
    "source": "umap",
    "umap": "at-plan_1",
    "done": { "field": "Completed", "outline": "#43A047", "status": "{layer} priority" },
+   "components": { "label": "Network components" },
    "thumb": "/static/thumbs/at-plan.jpg"
   },
   {
