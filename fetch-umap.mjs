@@ -87,7 +87,7 @@ for (const m of targets) {
       name: o.name,
       color: o.color || 'DarkBlue',
       weight: o.weight ?? 3,
-      opacity: o.opacity ?? 0.5,
+      opacity: o.opacity ?? map.opacity ?? 1,
       fillColor: o.fillColor || null,
       fillOpacity: o.fillOpacity ?? 0.3,
       iconClass: o.iconClass || null,
