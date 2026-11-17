@@ -56,7 +56,7 @@ Pushing to `main` deploys automatically (Cloudflare Workers Builds: build `node 
 | `src/static/data/` | map data and photos from uMap (made by `fetch-umap.mjs`) |
 | `src/static/thumbs/` | card photos (640×360, also used for Facebook link previews) |
 
-**Add a map:** make it in uMap, add an entry to `src/maps.json` with `"source": "umap"` and `"umap": "<name>_<id>"` (the end of the map's uMap address), then fetch and build. `layers` (`{ "friendly-name": "uMap layer id" }`) is optional, and `"oneLayer": true` makes the Map key show one layer at a time (used for Historical Aerial Photos, one year at a time). `"outline": { "layer-key": "#colour" }` draws that layer with a coloured edge (the AT Plan's green edge for completed projects). For a map hosted elsewhere, use `"source": "external"` with a `url`; its card links straight out.
+**Add a map:** make it in uMap, add an entry to `src/maps.json` with `"source": "umap"` and `"umap": "<name>_<id>"` (the end of the map's uMap address), then fetch and build. `layers` (`{ "friendly-name": "uMap layer id" }`) is optional, and `"oneLayer": true` makes the Map key show one layer at a time (used for Historical Aerial Photos, one year at a time). `"done": { "field": "Completed", "outline": "#43A047", "status": "{layer} priority" }` gives a map a done checkbox: ticked features get a green edge and a status line in the popup, and the Map key gets All / Planned / Completed (used by the AT Plan).
 
 ## Credits
 

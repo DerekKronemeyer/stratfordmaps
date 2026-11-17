@@ -25,7 +25,7 @@
    "description": "Projects from the Town's 2023 Active Transportation Plan, showing what's recommended and what's been completed.",
    "source": "umap",
    "umap": "at-plan_1",
-   "outline": { "completed": "#43A047" },
+   "done": { "field": "Completed", "outline": "#43A047", "status": "{layer} priority" },
    "thumb": "/static/thumbs/at-plan.jpg"
   },
   {

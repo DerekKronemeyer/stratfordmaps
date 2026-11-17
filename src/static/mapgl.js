@@ -45,8 +45,13 @@
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
   };
-  // Popup table rows: every field except name, description, id and hidden _style fields.
-  const extraFields = (l, p) => [...new Set([...(l.fields || []), ...Object.keys(p)])].filter((k) => !['name', 'description', 'id'].includes(k) && !k.startsWith('_') && p[k] !== '' && p[k] != null);
+  // Maps with a done checkbox (`done` in maps.json, e.g. the AT Plan's "Completed") draw ticked features
+  // with a coloured edge and let the Map key show all, planned or completed features.
+  const done = cfg.done;
+  const isDone = (p) => !!done && ['true', '1', 'yes'].includes(String(p[done.field]).toLowerCase());
+  const doneExpr = done ? ['in', ['downcase', ['to-string', ['get', done.field]]], ['literal', ['true', '1', 'yes']]] : false;
+  // Popup table rows: every field except name, description, id, the done checkbox and hidden _style fields.
+  const extraFields = (l, p) => [...new Set([...(l.fields || []), ...Object.keys(p)])].filter((k) => !['name', 'description', 'id', done?.field].includes(k) && !k.startsWith('_') && p[k] !== '' && p[k] != null);
   const hasContent = (l, p) => p.name || p.description || extraFields(l, p).length > 0;
   // uMap "icons" here are emoji (up to 4 characters, since some emoji are several); image URLs are ignored.
   const emojiOf = (icon) => (icon && [...icon].length <= 4 && !/^https?:|\//.test(icon) ? icon : '');
@@ -72,6 +77,10 @@
     const fit = narrow && !focusId && shownPts.length > 1
       ? shownPts.reduce(([[w, s], [e, n]], [x, y]) => [[Math.min(w, x), Math.min(s, y)], [Math.max(e, x), Math.max(n, y)]], [[180, 90], [-180, -90]])
       : null;
+    // Show: all, planned (not done) or completed features. ?show=completed in a link picks one.
+    let showMode = done && ['planned', 'completed'].includes(params.get('show')) ? params.get('show') : 'all';
+    const showOk = (p) => showMode === 'all' || (showMode === 'completed') === isDone(p);
+    const showFilter = () => (showMode === 'all' ? true : showMode === 'completed' ? doneExpr : ['!', doneExpr]);
     const startBase = /World_Imagery|aerial|satellite/i.test(`${data.basemap?.url} ${data.basemap?.name}`) || !data.basemap ? 'aerial' : 'streets';
 
     const map = new maplibregl.Map({
@@ -95,12 +104,12 @@
 
     // ---------- Drawing the layers ----------
 
-    const markers = {}; // layer key -> HTML pin markers
+    const markers = {}; // layer key -> [{ f, mk }] HTML pin markers
     const clickable = []; // MapLibre layer ids that open a popup, topmost first
     const layerOf = {}; // MapLibre layer id -> our layer
     // A feature's own style if it has one, otherwise the layer's.
     const style = (key, fallback) => ['coalesce', ['get', `_${key}`], fallback];
-    const outlineOf = (l) => (cfg.outline || {})[l.key] || ''; // edge colour for this layer, if any
+    const baseFilter = {}; // MapLibre layer id -> its geometry filter (the show filter is added on top)
 
     map.on('load', () => {
       // Start with the credits collapsed to the (i) button; MapLibre opens them on load.
@@ -108,7 +117,8 @@
       // Areas first, then lines, then dots, so smaller things stay on top.
       for (const l of data.layers) map.addSource(`src-${l.key}`, { type: 'geojson', data: { type: 'FeatureCollection', features: l.features } });
       const add = (l, spec, click) => {
-        map.addLayer({ ...spec, source: `src-${l.key}`, layout: { ...(spec.layout || {}), visibility: l.show ? 'visible' : 'none' } });
+        baseFilter[spec.id] = spec.filter;
+        map.addLayer({ ...spec, filter: ['all', spec.filter, showFilter()], source: `src-${l.key}`, layout: { ...(spec.layout || {}), visibility: l.show ? 'visible' : 'none' } });
         layerOf[spec.id] = l;
         if (click) clickable.unshift(spec.id);
       };
@@ -122,14 +132,14 @@
         if (!l.features.some((f) => kindOf(f.geometry) === 'line')) continue;
         const isLine = ['match', ['geometry-type'], ['LineString', 'MultiLineString'], true, false];
         const rounded = { 'line-join': 'round', 'line-cap': 'round' };
-        // A thin dark edge under each line keeps it readable on the aerial photo. Layers listed in
-        // `outline` (maps.json) get a wider edge in that colour instead, e.g. green for completed projects.
-        const edge = outlineOf(l);
-        const casing = edge
-          ? { 'line-color': edge, 'line-opacity': 1, 'line-width': ['+', style('weight', l.weight), 6] }
+        // A thin dark edge under each line keeps it readable on the aerial photo; done features get a
+        // wider edge in the done colour instead (green for completed AT Plan projects).
+        const casing = done
+          ? { 'line-color': ['case', doneExpr, done.outline, '#111'], 'line-opacity': ['case', doneExpr, 1, 0.5], 'line-width': ['+', style('weight', l.weight), ['case', doneExpr, 6, 3]] }
           : { 'line-color': '#111', 'line-opacity': 0.5, 'line-width': ['+', style('weight', l.weight), 3] };
+        const lineOpacity = done ? ['case', doneExpr, 1, style('opacity', l.opacity)] : style('opacity', l.opacity);
         add(l, { id: `${l.key}-casing`, type: 'line', filter: isLine, layout: rounded, paint: casing });
-        add(l, { id: `${l.key}-line`, type: 'line', filter: isLine, layout: rounded, paint: { 'line-color': style('color', l.color), 'line-opacity': style('opacity', l.opacity), 'line-width': style('weight', l.weight) } }, true);
+        add(l, { id: `${l.key}-line`, type: 'line', filter: isLine, layout: rounded, paint: { 'line-color': style('color', l.color), 'line-opacity': lineOpacity, 'line-width': style('weight', l.weight) } }, true);
       }
       for (const l of data.layers) {
         const points = l.features.filter((f) => f.geometry.type === 'Point');
@@ -144,14 +154,15 @@
           el.type = 'button';
           el.className = 'pin';
           el.style.setProperty('--pin-color', p._color || l.color);
-          if (outlineOf(l)) el.style.setProperty('--pin-ring', outlineOf(l));
-          el.innerHTML = `<span class="pin-head"><b>${esc(emojiOf(p._iconUrl || l.iconUrl))}</b></span>${l.showLabel && p.name ? `<span class="pin-label">${esc(p.name)}</span>` : ''}`;
+          if (isDone(p)) el.style.setProperty('--pin-ring', done.outline);
+          const mark = emojiOf(p._iconUrl || l.iconUrl) || (isDone(p) ? '✓' : '');
+          el.innerHTML = `<span class="pin-head"><b>${esc(mark)}</b></span>${l.showLabel && p.name ? `<span class="pin-label">${esc(p.name)}</span>` : ''}`;
           el.setAttribute('aria-label', p.name || l.name);
           if (!hasContent(l, p)) el.style.cursor = 'default';
           el.addEventListener('click', (e) => { e.stopPropagation(); showPopup(l, f, f.geometry.coordinates); });
           const mk = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat(f.geometry.coordinates);
-          if (l.show) mk.addTo(map);
-          return mk;
+          if (l.show && showOk(p)) mk.addTo(map);
+          return { f, mk };
         });
       }
 
@@ -183,11 +194,19 @@
     function showPopup(l, f, at) {
       const p = f.properties;
       if (!hasContent(l, p)) return;
+      // Status line on done-checkbox maps, e.g. "High priority · Completed" (parts of a project share its name).
+      let status = '';
+      if (done?.status) {
+        const parts = l.features.filter((x) => x.properties.name === p.name);
+        const doneParts = parts.filter((x) => isDone(x.properties)).length;
+        const note = isDone(p) ? (doneParts < parts.length ? 'This section is completed' : 'Completed') : doneParts ? 'Part of this project is completed' : '';
+        status = `<p class="status"><strong>${esc(done.status.replace('{layer}', l.name))}</strong>${note ? ` · ${note}` : ''}</p>`;
+      }
       const rows = extraFields(l, p).map((k) => `<tr><th>${esc(k)}</th><td>${valueHtml(String(p[k]))}</td></tr>`).join('');
       popup?.remove();
       popup = new maplibregl.Popup({ maxWidth: '340px', focusAfterOpen: false, offset: f.geometry.type === 'Point' && l.pins ? PIN_OFFSET : 8 })
         .setLngLat(at)
-        .setHTML(`${p.name ? `<h3>${esc(p.name).replace(/\n/g, '<br>')}</h3>` : ''}${rows ? `<table>${rows}</table>` : ''}${p.description ? richText(p.description) : ''}`)
+        .setHTML(`${p.name ? `<h3>${esc(p.name).replace(/\n/g, '<br>')}</h3>` : ''}${status}${rows ? `<table>${rows}</table>` : ''}${p.description ? richText(p.description) : ''}`)
         .addTo(map);
     }
 
@@ -196,12 +215,16 @@
     function setLayer(l, on) {
       l.show = on;
       for (const suffix of ['fill', 'outline', 'casing', 'line', 'point']) if (map.getLayer(`${l.key}-${suffix}`)) map.setLayoutProperty(`${l.key}-${suffix}`, 'visibility', on ? 'visible' : 'none');
-      for (const mk of markers[l.key] || []) on ? mk.addTo(map) : mk.remove();
+      for (const { f, mk } of markers[l.key] || []) on && showOk(f.properties) ? mk.addTo(map) : mk.remove();
+    }
+    function setShow(mode) {
+      showMode = mode;
+      for (const [id, filter] of Object.entries(baseFilter)) map.setFilter(id, ['all', filter, showFilter()]);
+      for (const l of data.layers) setLayer(l, l.show);
     }
 
     // The little sample beside each layer name: its emoji, or a patch of its line, area or dot colour.
     const swatch = (l) => {
-      if (outlineOf(l)) return `<span class="sw sw-line sw-outlined" style="--c:#9aa0a6;--ring:${esc(outlineOf(l))}"></span>`;
       const icon = l.pins ? emojiOf(l.iconUrl) : '';
       if (icon) return `<span class="sw sw-icon">${esc(icon)}</span>`;
       const cls = { area: 'sw-area', line: 'sw-line', point: 'sw-dot' }[l.kind];
@@ -211,11 +234,13 @@
     // Checkboxes normally; radio buttons on one-layer maps, so picking a layer switches off the last one.
     const layerInput = cfg.oneLayer ? 'type="radio" name="layer"' : 'type="checkbox"';
     keyPanel.innerHTML = `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).join('')}</fieldset>
+${done ? `<fieldset class="basemaps"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}
 <fieldset class="basemaps"><legend>Background</legend>${Object.entries(bases).map(([k, b]) => `<label><input type="radio" name="base" value="${k}"${k === startBase ? ' checked' : ''}><span>${b.name}</span></label>`).join('')}</fieldset>`;
     keyPanel.addEventListener('change', (e) => {
       const t = e.target;
       if (t.dataset.i && cfg.oneLayer) data.layers.forEach((l, i) => setLayer(l, i === +t.dataset.i));
       else if (t.dataset.i) setLayer(data.layers[+t.dataset.i], t.checked);
+      if (t.name === 'show') setShow(t.value);
       if (t.name === 'base') for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', k === t.value ? 'visible' : 'none');
     });
     const updated = data.updated ? new Date(data.updated).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Halifax' }) : '';
