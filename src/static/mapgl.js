@@ -108,8 +108,6 @@
       container: 'map',
       // uMap (Leaflet) counts zoom in 256px tiles, MapLibre in 512px, so MapLibre's zoom is one lower for the same view.
       center: data.center, zoom: data.zoom - 1, maxZoom: 20,
-      // Keep the view on the Stratford area (the town plus the edges of Charlottetown and the old air photo frames).
-      maxBounds: [[-63.23, 46.13], [-62.99, 46.28]],
       ...(fit ? { bounds: fit, fitBoundsOptions: { padding: 24, maxZoom: 15 } } : {}),
       attributionControl: { compact: true },
       style: {
