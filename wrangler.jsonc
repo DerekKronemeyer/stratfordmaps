@@ -2,6 +2,8 @@
   // Static site on Cloudflare Workers. Build: `node build.mjs` → dist/. Deploy: `npx wrangler deploy`.
   "name": "stratfordmaps",
   "compatibility_date": "2026-11-01",
+  // Served only at www.stratfordmaps.ca (custom domain), not at a duplicate workers.dev address.
+  "workers_dev": false,
   "assets": {
     "directory": "./dist",
     "html_handling": "drop-trailing-slash",
