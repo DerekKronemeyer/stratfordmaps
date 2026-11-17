@@ -155,6 +155,10 @@
     const layerOf = {}; // MapLibre layer id -> our layer
     // A feature's own style if it has one, otherwise the layer's.
     const style = (key, fallback) => ['coalesce', ['get', `_${key}`], fallback];
+    // Lines that scale with zoom (`scaleLines` in maps.json): the uMap width is used at neighbourhood level,
+    // thinner when the whole town is in view, thicker down at street and trail level.
+    const LINE_SCALE = [[12, 0.4], [13, 0.55], [15, 1], [17, 1.7], [19, 2.3]];
+    const widthAt = (w) => (cfg.scaleLines ? ['interpolate', ['linear'], ['zoom'], ...LINE_SCALE.flatMap(([z, k]) => [z, ['*', w, k]])] : w);
     const baseFilter = {}; // MapLibre layer id -> its geometry filter (the show or component filter is added on top)
     // What is visible: in Layers mode the layer checkboxes and Show choice; in components mode the ticked components.
     const extraFilter = () => (mode === 'components' ? ['in', ['get', '_comp'], ['literal', [...picked]]] : showFilter());
@@ -192,11 +196,11 @@
         // A thin dark edge under each line keeps it readable on the aerial photo; done features get a
         // wider edge in the done colour instead (green for completed AT Plan projects).
         const casing = done
-          ? { 'line-color': ['case', doneExpr, done.outline, '#111'], 'line-opacity': ['case', doneExpr, 1, 0.5], 'line-width': ['+', style('weight', l.weight), ['case', doneExpr, 6, 3]] }
-          : { 'line-color': '#111', 'line-opacity': 0.5, 'line-width': ['+', style('weight', l.weight), 3] };
+          ? { 'line-color': ['case', doneExpr, done.outline, '#111'], 'line-opacity': ['case', doneExpr, 1, 0.5], 'line-width': widthAt(['+', style('weight', l.weight), ['case', doneExpr, 6, 3]]) }
+          : { 'line-color': '#111', 'line-opacity': 0.5, 'line-width': widthAt(['+', style('weight', l.weight), 3]) };
         const lineOpacity = done ? ['case', doneExpr, 1, style('opacity', l.opacity)] : style('opacity', l.opacity);
         add(l, { id: `${l.key}-casing`, type: 'line', filter: isLine, layout: rounded, paint: casing });
-        add(l, { id: `${l.key}-line`, type: 'line', filter: isLine, layout: rounded, paint: { 'line-color': style('color', l.color), 'line-opacity': lineOpacity, 'line-width': style('weight', l.weight) } }, true);
+        add(l, { id: `${l.key}-line`, type: 'line', filter: isLine, layout: rounded, paint: { 'line-color': style('color', l.color), 'line-opacity': lineOpacity, 'line-width': widthAt(style('weight', l.weight)) } }, true);
       }
       for (const l of data.layers) {
         const points = l.features.filter((f) => f.geometry.type === 'Point');

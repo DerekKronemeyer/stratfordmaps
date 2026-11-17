@@ -53,6 +53,7 @@
    "description": "Bike routes, bike parking and where to get your bike fixed.",
    "source": "umap",
    "umap": "biking_3",
+   "scaleLines": true,
    "thumb": "/static/thumbs/biking.jpg"
   },
   {
