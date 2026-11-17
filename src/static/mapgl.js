@@ -127,7 +127,7 @@
       onAdd() {
         this.el = document.createElement('div');
         this.el.className = 'maplibregl-ctrl bg-ctrl';
-        this.el.innerHTML = `<div class="maplibregl-ctrl-group"><button type="button" class="bg-btn" aria-label="Background" title="Background" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m3 16 5-5 4 4 3-3 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="9.5" r="1.6" fill="currentColor"/></svg></button></div>
+        this.el.innerHTML = `<div class="maplibregl-ctrl-group"><button type="button" class="bg-btn" aria-label="Background" title="Background" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5" transform="translate(0 -1.5) scale(1 .92)"/></svg></button></div>
 <div class="bg-menu" role="menu" hidden>${Object.entries(bases).map(([k, b]) => `<button type="button" role="menuitemradio" data-base="${k}" aria-checked="${k === startBase}">${esc(b.name)}</button>`).join('')}</div>`;
         const btn = this.el.querySelector('.bg-btn');
         const menu = this.el.querySelector('.bg-menu');
