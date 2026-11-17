@@ -108,6 +108,8 @@
       container: 'map',
       // uMap (Leaflet) counts zoom in 256px tiles, MapLibre in 512px, so MapLibre's zoom is one lower for the same view.
       center: data.center, zoom: data.zoom - 1, maxZoom: 20,
+      // Keep the view on the Stratford area (the town plus the edges of Charlottetown and the old air photo frames).
+      maxBounds: [[-63.23, 46.13], [-62.99, 46.28]],
       ...(fit ? { bounds: fit, fitBoundsOptions: { padding: 24, maxZoom: 15 } } : {}),
       attributionControl: { compact: true },
       style: {
@@ -155,10 +157,10 @@
     const layerOf = {}; // MapLibre layer id -> our layer
     // A feature's own style if it has one, otherwise the layer's.
     const style = (key, fallback) => ['coalesce', ['get', `_${key}`], fallback];
-    // Lines that scale with zoom (`scaleLines` in maps.json): the uMap width is used at neighbourhood level,
+    // Lines scale with zoom: the uMap width is used at neighbourhood level,
     // thinner when the whole town is in view, thicker down at street and trail level.
     const LINE_SCALE = [[12, 0.4], [13, 0.55], [15, 1], [17, 1.7], [19, 2.3]];
-    const widthAt = (w) => (cfg.scaleLines ? ['interpolate', ['linear'], ['zoom'], ...LINE_SCALE.flatMap(([z, k]) => [z, ['*', w, k]])] : w);
+    const widthAt = (w) => ['interpolate', ['linear'], ['zoom'], ...LINE_SCALE.flatMap(([z, k]) => [z, ['*', w, k]])];
     const baseFilter = {}; // MapLibre layer id -> its geometry filter (the show or component filter is added on top)
     // What is visible: in Layers mode the layer checkboxes and Show choice; in components mode the ticked components.
     const extraFilter = () => (mode === 'components' ? ['in', ['get', '_comp'], ['literal', [...picked]]] : showFilter());
