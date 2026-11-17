@@ -103,6 +103,8 @@ for (const m of targets) {
   const t = map.tilelayer;
   const out = {
     name: map.name,
+    // Shown in the map's Info panel; uMap text formatting works, e.g. [[https://...|link text]].
+    description: map.description || '',
     center: map.center ? [map.center[0], map.center[1]] : null,
     zoom: map.zoom ?? 14,
     // Last edit in uMap: the newest of the map's own save time and each layer's version (a save timestamp in ms).
