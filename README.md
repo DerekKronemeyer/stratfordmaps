@@ -18,7 +18,8 @@ src/  ── node build.mjs ──► dist/ ──► Cloudflare Workers (static
 ```
 
 - **No server code, no database.** `build.mjs` (plain Node, no dependencies) turns the files in `src/` into static pages in `dist/`.
-- **Maps are edited in [uMap](https://umap-project.org/)**, running privately on my own server. After editing, `node fetch-umap.mjs` copies the maps into `src/static/data/`, and that data is committed, so the live site never depends on uMap being up.
+- **Maps are edited in [uMap](https://umap-project.org/)**, running privately on my own server. `node fetch-umap.mjs` copies the maps into `src/static/data/`, and that data is committed, so the live site never depends on uMap being up.
+- **Publishing is automatic.** The uMap server runs the fetch every night and commits and pushes any changes as "Map updates from uMap"; a "Publish to site" button on the uMap dashboard runs it on demand. Pull before changing code locally.
 - **Photos:** any `{{image url}}` in a description is copied into `src/static/data/photos/` by the fetch, so the site never hotlinks.
 - **Shareable links:** `/walking?layers=best,winter&feature=fullertons-creek-conservation-park` opens the Walking map with only those layers on and that place's popup open. Friendly layer names come from `layers` in `src/maps.json`; places are matched on their permanent `id` field.
 - **On phones**, each map opens zoomed to fit what's switched on; on desktop it opens on the view set in uMap.
