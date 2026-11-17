@@ -194,10 +194,11 @@
     function showPopup(l, f, at) {
       const p = f.properties;
       if (!hasContent(l, p)) return;
-      // Status line on done-checkbox maps, e.g. "High priority · Completed" (parts of a project share its name).
+      // Status line on done-checkbox maps, e.g. "High priority · Completed". The pieces of one project share
+      // its name, on any layer of the map.
       let status = '';
       if (done?.status) {
-        const parts = l.features.filter((x) => x.properties.name === p.name);
+        const parts = data.layers.flatMap((x) => x.features).filter((x) => x.properties.name === p.name);
         const doneParts = parts.filter((x) => isDone(x.properties)).length;
         const note = isDone(p) ? (doneParts < parts.length ? 'This section is completed' : 'Completed') : doneParts ? 'Part of this project is completed' : '';
         status = `<p class="status"><strong>${esc(done.status.replace('{layer}', l.name))}</strong>${note ? ` · ${note}` : ''}</p>`;

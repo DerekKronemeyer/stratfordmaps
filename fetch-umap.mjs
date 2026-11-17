@@ -100,6 +100,21 @@ for (const m of targets) {
   }
   for (const layer of layers) for (const f of layer.features) await localizePhotos(f.properties);
 
+  // Every named feature needs its own id for shareable links (?feature=). A line split in uMap copies
+  // its id, and new features have none, so those get the next free number: f14, f14-2, f14-3...
+  // The first feature with an id keeps it, so existing links keep working.
+  const usedIds = new Set();
+  for (const layer of layers) for (const f of layer.features) {
+    const p = f.properties;
+    if (!p.name) continue;
+    if (p.id && !usedIds.has(p.id)) { usedIds.add(p.id); continue; }
+    const base = (p.id || slugify(p.name.split(':')[0])).replace(/-\d+$/, '');
+    let n = 1, id = base;
+    while (usedIds.has(id)) id = `${base}-${++n}`;
+    p.id = id;
+    usedIds.add(id);
+  }
+
   const t = map.tilelayer;
   const out = {
     name: map.name,
