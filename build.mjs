@@ -108,7 +108,7 @@ const aboutBody = `<article class="prose">
 <h2 id="feedback">Feedback</h2>
 <p>Have a question, spotted something that looks off, or know of something I should add? I&rsquo;d like to hear from you. These maps are always a work in progress, and corrections and ideas help make them better for everyone. ${messageMe}.</p>
 <h2>Credits</h2>
-<p>The maps are made with <a href="https://umap-project.org/">uMap</a>, an open source map editor I run myself, and drawn on this site with <a href="https://maplibre.org/">MapLibre</a>. Aerial imagery is from Esri and from the Town of Stratford&rsquo;s 2018 aerial photos, and the street map is from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>.</p>
+<p>The maps are made with <a href="https://umap-project.org/">uMap</a>, an open source map editor I run myself, and drawn on this site with <a href="https://maplibre.org/">MapLibre</a>. Aerial imagery is from Esri and from the Town of Stratford&rsquo;s 2018 and 2025 aerial photos, and the street map is from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>.</p>
 </article>`;
 
 const resourceGroups = [...new Set(resources.map((r) => r.group))];
