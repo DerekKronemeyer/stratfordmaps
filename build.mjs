@@ -45,6 +45,7 @@ ${image ? `<meta property="og:image:width" content="640">
 <link rel="icon" href="/static/favicon.png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 ${extraHead}<link rel="stylesheet" href="/static/style.css">
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "dcb4e8cff9d44692b51cd52b5c36fafe"}'></script>
 </head>`;
 
 const facebookLink = `<a class="social" href="${esc(site.facebookUrl)}" target="_blank" rel="noopener" aria-label="Stratford Maps on Facebook" title="Facebook">${icons.facebook}</a>`;
