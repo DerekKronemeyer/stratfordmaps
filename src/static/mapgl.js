@@ -33,7 +33,7 @@
     aerial: { name: 'Aerial', tiles: [ESRI.url], maxzoom: 18, attribution: ESRI.attribution },
     // The Town's photos only cover Stratford, so Esri's aerial shows underneath (`under`).
     town2025: { name: 'Aerial 2025 (Town)', tiles: ['https://tiles.stratfordmaps.ca/aerial-2025/{z}/{x}/{y}.webp'], minzoom: 12, maxzoom: 18, bounds: [-63.1336, 46.1837, -63.0181, 46.2502], attribution: 'Imagery &copy; Town of Stratford, from the Province of PEI (2025)', under: 'aerial' },
-    town2018: { name: 'Aerial 2018 (Town)', tiles: ['https://tiles.stratfordmaps.ca/aerial-2018/{z}/{x}/{y}.webp'], minzoom: 12, maxzoom: 20, bounds: [-63.1335, 46.186, -63.0265, 46.2505], attribution: 'Imagery &copy; Town of Stratford (2018)', under: 'aerial' },
+    town2018: { name: 'Aerial 2018 (Town, detailed)', tiles: ['https://tiles.stratfordmaps.ca/aerial-2018/{z}/{x}/{y}.webp'], minzoom: 12, maxzoom: 20, bounds: [-63.1335, 46.186, -63.0265, 46.2505], attribution: 'Imagery &copy; Town of Stratford (2018)', under: 'aerial' },
     streets: { name: 'Streets', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], maxzoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' },
   };
   const baseShown = (k, picked) => k === picked || bases[picked]?.under === k;
@@ -106,7 +106,8 @@
     let showMode = done && ['planned', 'completed'].includes(params.get('show')) ? params.get('show') : 'all';
     const showOk = (p) => showMode === 'all' || (showMode === 'completed') === isDone(p);
     const showFilter = () => (showMode === 'all' ? true : showMode === 'completed' ? doneExpr : ['!', doneExpr]);
-    const startBase = /World_Imagery|aerial|satellite/i.test(`${data.basemap?.url} ${data.basemap?.name}`) || !data.basemap ? 'aerial' : 'streets';
+    // Maps with an aerial background in uMap open on the Town's 2025 photos (one consistent look across Stratford).
+    const startBase = /World_Imagery|aerial|satellite/i.test(`${data.basemap?.url} ${data.basemap?.name}`) || !data.basemap ? 'town2025' : 'streets';
 
     const map = new maplibregl.Map({
       container: 'map',
