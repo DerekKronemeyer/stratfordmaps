@@ -31,8 +31,11 @@
   const ESRI = { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Imagery &copy; Esri, Vantor, City of Charlottetown, Earthstar Geographics' };
   const bases = {
     aerial: { name: 'Aerial', tiles: [ESRI.url], maxzoom: 18, attribution: ESRI.attribution },
+    // The Town's 2018 photos only cover Stratford, so Esri's aerial shows underneath (`under`).
+    town2018: { name: 'Aerial 2018 (Town)', tiles: ['https://tiles.stratfordmaps.ca/aerial-2018/{z}/{x}/{y}.webp'], minzoom: 12, maxzoom: 20, bounds: [-63.1335, 46.186, -63.0265, 46.2505], attribution: 'Imagery &copy; Town of Stratford (2018)', under: 'aerial' },
     streets: { name: 'Streets', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], maxzoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' },
   };
+  const baseShown = (k, picked) => k === picked || bases[picked]?.under === k;
 
   // ---------- Geometry helpers ----------
 
@@ -112,10 +115,10 @@
       attributionControl: { compact: true },
       style: {
         version: 8,
-        sources: Object.fromEntries(Object.entries(bases).map(([k, b]) => [`base-${k}`, { type: 'raster', tiles: b.tiles, tileSize: 256, maxzoom: b.maxzoom, attribution: b.attribution }])),
+        sources: Object.fromEntries(Object.entries(bases).map(([k, b]) => [`base-${k}`, { type: 'raster', tiles: b.tiles, tileSize: 256, minzoom: b.minzoom || 0, maxzoom: b.maxzoom, ...(b.bounds ? { bounds: b.bounds } : {}), attribution: b.attribution }])),
         layers: [
           { id: 'bg', type: 'background', paint: { 'background-color': '#2a2d32' } },
-          ...Object.keys(bases).map((k) => ({ id: `base-${k}`, type: 'raster', source: `base-${k}`, layout: { visibility: k === startBase ? 'visible' : 'none' } })),
+          ...Object.keys(bases).map((k) => ({ id: `base-${k}`, type: 'raster', source: `base-${k}`, layout: { visibility: baseShown(k, startBase) ? 'visible' : 'none' } })),
         ],
       },
     });
@@ -136,7 +139,7 @@
         menu.addEventListener('click', (e) => {
           const pick = e.target.closest('[data-base]');
           if (!pick) return;
-          for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', k === pick.dataset.base ? 'visible' : 'none');
+          for (const k of Object.keys(bases)) map.setLayoutProperty(`base-${k}`, 'visibility', baseShown(k, pick.dataset.base) ? 'visible' : 'none');
           for (const b of menu.querySelectorAll('[data-base]')) b.setAttribute('aria-checked', String(b === pick));
           open(false);
         });

@@ -23,6 +23,7 @@ src/  ── node build.mjs ──► dist/ ──► Cloudflare Workers (static
 - **Photos:** any `{{image url}}` in a description is copied into `src/static/data/photos/` by the fetch, so the site never hotlinks.
 - **Shareable links:** `/walking?layers=best,winter&feature=fullertons-creek-conservation-park` opens the Walking map with only those layers on and that place's popup open. Friendly layer names come from `layers` in `src/maps.json`; places are matched on their permanent `id` field.
 - **On phones**, each map opens zoomed to fit what's switched on; on desktop it opens on the view set in uMap.
+- **Backgrounds** (top-right button): Esri aerial, the Town of Stratford's 2018 aerial photos, and OpenStreetMap streets. The 2018 photos are served from a Cloudflare R2 bucket (`stratfordmaps-tiles`, at `tiles.stratfordmaps.ca/aerial-2018/{z}/{x}/{y}.webp`): the Town's tiles converted to WebP, with empty tiles dropped and the black fill outside the photo area made transparent so Esri shows through.
 
 ### Why uMap?
 
@@ -61,7 +62,7 @@ Pushing to `main` deploys automatically (Cloudflare Workers Builds: build `node 
 ## Credits
 
 - Maps drawn with [MapLibre GL JS](https://maplibre.org/) (BSD-3-Clause, `src/static/vendor/maplibre-gl/LICENSE.txt`) and edited in [uMap](https://umap-project.org/) (AGPL).
-- Aerial imagery © Esri and its partners; street map © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+- Aerial imagery © Esri and its partners, and 2018 aerial photos © Town of Stratford; street map © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
 - Logo by Derek Kronemeyer; Town of Stratford emblem used with the Town's permission.
 - Layout inspired by [Bike Ottawa Maps](https://maps.bikeottawa.ca) and [Seattle Atlas](https://seattleatlas.org).
 
