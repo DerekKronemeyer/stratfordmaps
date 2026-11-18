@@ -113,19 +113,26 @@
       ? `<p><strong>${base.map((z) => `${esc(info.zones[z] || z)} (${esc(z)})`).join(', ')}</strong></p>${overlay ? `<p>Also in the ${esc(info.zones.SS)}.</p>` : ''}${base.length > 1 ? '<p class="muted">This address sits on a zone boundary.</p>' : ''}`
       : '<p>No zone found for this address.</p>', `From the Town&rsquo;s May 2023 zoning map. The Town is working on a new zoning bylaw, so check with the Town before you plan anything. ${link(info.zoningSource)}`));
 
-    const flood = data.flood[a.flood] || [];
-    const floodText = flood.length
-      ? flood.map((f) => (f === 'coastal'
-        ? '<p><strong>Inside a coastal flood area.</strong> The Town&rsquo;s flood map shows this spot could flood from the sea in a 1-in-100-year storm by 2100, once sea-level rise is included.</p>'
-        : '<p><strong>Inside an inland flood area.</strong> The Town&rsquo;s flood map shows this spot could flood from heavy rain or streams in a 1-in-100-year storm, in a future climate.</p>')).join('')
-      : '<p>Not inside a flood area on the Town&rsquo;s flood map.</p>';
-    out.push(card('Flood risk', floodText, 'This checks only the address point, usually the house, not the whole lot. It is a planning map, not a guarantee either way.'));
+    // The house being in a flood area is the stronger warning; the lot only counts when the house is clear and at least 10% of the lot is in one.
+    const flood = data.flood[a.flood];
+    const kind = { coastal: 'from the sea in a 1-in-100-year storm by 2100, once sea-level rise is included', inland: 'from heavy rain or streams in a 1-in-100-year storm, in a future climate' };
+    const area = (t) => (t === 'coastal' ? 'a coastal' : 'an inland');
+    const floodText = !flood ? '<p>Not inside a flood area on the Town&rsquo;s flood map.</p>'
+      : flood.types.map((t) => (flood.where === 'house'
+        ? `<p><strong class="warn">The house is inside ${area(t)} flood area.</strong> The Town&rsquo;s flood map shows it could flood ${kind[t]}.</p>`
+        : `<p><strong class="warn">Part of the property is in ${area(t)} flood area.</strong> The house is outside it, but at least 10% of the lot could flood ${kind[t]}.</p>`)).join('');
+    out.push(card('Flood risk', floodText, 'The house is checked at its address point. This is the Town&rsquo;s planning map, not a guarantee either way.'));
 
     const stop = a.stop && data.stops[a.stop[0]];
     const park = a.park && data.parks[a.park[0]];
     const play = a.playground && data.playgrounds[a.playground[0]];
-    out.push(card('Nearby', `<dl>${stop ? row('Bus stop', `${esc(stop.name)}<br><span class="muted">about ${distance(a.stop[1])}${stop.routes.length ? ` &middot; ${stop.routes.map(esc).join(', ')}` : ''}</span>`) : ''}${park ? row('Park', `${esc(park)}<br><span class="muted">about ${distance(a.park[1])}</span>`) : ''}${play ? row('Playground', `${esc(play)}<br><span class="muted">about ${distance(a.playground[1])}</span>`) : ''}</dl>`,
-      'Distances are in a straight line, so walking is usually a bit farther.'));
+    const straight = 'Distances are in a straight line, so walking is usually a bit farther.';
+    const near = (name, m) => `<strong>${esc(name)}</strong><br><span class="muted">about ${distance(m)}</span>`;
+    out.push(card('Bus', stop
+      ? `<dl>${row('Nearest stop', near(stop.name, a.stop[1]))}${stop.routes.length ? row('Routes', stop.routes.map(esc).join('<br>')) : ''}</dl>`
+      : '<p>No bus stop found nearby.</p>', straight));
+    out.push(card('Parks', `<dl>${park ? row('Nearest park', near(park, a.park[1])) : ''}${play ? row('Nearest playground', near(play, a.playground[1])) : ''}</dl>`,
+      `${straight} <a href="/parks">Parks map</a>`));
 
     results.innerHTML = `<h2 class="result-title">${esc(label(a))}</h2><div class="results-grid">${out.join('')}</div>`;
     results.hidden = false;

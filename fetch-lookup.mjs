@@ -1,5 +1,5 @@
 // Builds src/static/data/lookup.json for the Address Lookup page: every Stratford civic address with its
-// ward, provincial district, collection days, zoning, flood areas and nearest bus stop, park and playground.
+// ward, provincial district, collection days, zoning, flood areas (at the house, or over 10% of the lot) and nearest bus stop, park and playground.
 // Usage: `node fetch-lookup.mjs`. Needs read access to the PEI data hub database; the command that runs
 // psql against it comes from HUB_PSQL in a local .env file (not committed), for example:
 //   HUB_PSQL=ssh you@server docker exec -i db psql -U user -d datahub -At
@@ -36,6 +36,12 @@ select json_build_object(
   'zones', (select json_agg(distinct z.attrs->>'ZONE_CODE') from canonical.feature z where z.dataset_id = 'stratford_zoning' and st_intersects(z.geom, a.geom)),
   'flood', (select json_agg(distinct case when f.attrs->>'FloodType' = 'Coastal Flood' then 'coastal' else 'inland' end)
             from canonical.feature f where f.dataset_id = 'stratford_coastal_flood' and st_intersects(f.geom, a.geom)),
+  'lotflood', (select json_agg(t) from (
+      select case when f.attrs->>'FloodType' = 'Coastal Flood' then 'coastal' else 'inland' end t,
+        st_area(st_intersection(lot.geom, st_union(f.geom))::geography) / nullif(st_area(lot.geom::geography), 0) share
+      from canonical.feature f
+      where f.dataset_id = 'stratford_coastal_flood' and st_intersects(f.geom, lot.geom)
+      group by 1) x where share >= 0.1),
   'stop', (select json_build_object('name', s.name, 'm', round(st_distance(s.geom::geography, a.geom::geography)), 'routes', s.routes)
            from stops s order by s.geom <-> a.geom limit 1),
   'park', (select json_build_object('name', p.attrs->>'Name', 'm', round(st_distance(p.geom::geography, a.geom::geography)))
@@ -44,7 +50,9 @@ select json_build_object(
   'playground', (select json_build_object('name', p.attrs->>'name', 'm', round(st_distance(p.geom::geography, a.geom::geography)))
            from canonical.feature p where p.dataset_id = 'pei_recreation_facilities' and p.attrs->>'type' = 'Park Playground'
            order by p.geom <-> a.geom limit 1)
-) from addr a order by a.street, a.no;
+) from addr a
+left join lateral (select l.geom from canonical.feature l where l.dataset_id = 'pei_parcels' and st_intersects(l.geom, a.geom) limit 1) lot on true
+order by a.street, a.no;
 `;
 
 const rows = execSync(process.env.HUB_PSQL, { input: SQL, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' })
@@ -81,7 +89,8 @@ const streetName = (s) => {
 const addresses = rows.map((r) => [
   r.no, ref('streets', streetName(r.street)), r.lon, r.lat,
   ref('wards', r.ward), ref('districts', r.district), ref('collection', r.cart && { cart: r.cart, bluebag: r.bluebag }),
-  ref('zones', r.zones?.sort() ?? null), ref('flood', r.flood?.sort() ?? null),
+  ref('zones', r.zones?.sort() ?? null), // The house point being in a flood area is the stronger warning; otherwise the lot counts if at least 10% of it is.
+  ref('flood', r.flood ? { where: 'house', types: r.flood.sort() } : r.lotflood ? { where: 'lot', types: r.lotflood.sort() } : null),
   r.stop && [ref('stops', { name: r.stop.name, routes: r.stop.routes ? r.stop.routes.split('|') : [] }), r.stop.m],
   r.park && [ref('parks', fix(r.park.name)), r.park.m],
   r.playground && [ref('playgrounds', fix(r.playground.name)), r.playground.m],

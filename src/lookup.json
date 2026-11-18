@@ -2,12 +2,12 @@
   "_note": "Kept by hand. People and phone numbers change: check each one against its source and update 'checked' whenever you do. The address data itself comes from `node fetch-lookup.mjs`.",
   "checked": "2026-11-18",
   "wards": {
-    "Kellys Cove": { "number": 1, "name": "Kelly's Cove", "councillors": ["Gordie Cox", "Dylan Cooper"] },
-    "Stewarts Cove": { "number": 2, "name": "Stewart Cove", "councillors": ["Jeff McEntee", "Patrick Ross"] },
-    "Tea Hill": { "number": 3, "name": "Tea Hill", "councillors": ["Steve Gallant", "Ron Dowling"] }
+    "Kellys Cove": { "number": 1, "name": "Kelly's Cove", "councillors": ["Gordie Cox", "Ron Dowling"] },
+    "Stewarts Cove": { "number": 2, "name": "Stewart Cove", "councillors": ["Jill Chandler", "Jeff MacDonald"] },
+    "Tea Hill": { "number": 3, "name": "Tea Hill", "councillors": ["Steve Gallant (Deputy Mayor)", "Seat vacant (Jody Jackson resigned)"] }
   },
   "mayor": "Steve Ogden",
-  "councilSource": { "label": "Elections PEI 2026 results", "url": "https://results.electionspei.ca/stratford/index.html" },
+  "_nextCouncil": "Elected 2026-11-02, not sworn in yet. Swap into 'wards' when they take office: Ward 1 Gordie Cox, Dylan Cooper; Ward 2 Jeff McEntee, Patrick Ross (acclaimed); Ward 3 Steve Gallant, Ron Dowling; Mayor Steve Ogden (acclaimed). Source: https://results.electionspei.ca/stratford/index.html",
   "councilContact": { "label": "Mayor and Council (Town of Stratford)", "url": "https://townofstratford.ca/government-services/contact-town-of-stratford/mayor-council/" },
   "districts": {
     "Stratford - Keppoch": { "name": "Stratford-Keppoch", "mla": "Jill Burridge", "party": "Progressive Conservative" },
@@ -29,6 +29,7 @@
   "emergency": [
     { "label": "Emergency (police, fire, ambulance)", "phone": "911" },
     { "label": "RCMP Stratford Detachment, non-emergency", "phone": "902-367-9300", "note": "4 Georgetown Road, weekdays", "source": "https://rcmp.ca/en/pei/detachments" },
+    { "label": "Crossroads Fire Department, non-emergency", "phone": "902-569-3473", "note": "Unmonitored answering machine, checked every few days. For a fire or any emergency, call 911." },
     { "label": "Town water and sewer emergencies, after hours", "phone": "902-626-2177", "source": "https://townofstratford.ca/government-services/contact-town-of-stratford/" },
     { "label": "Town Hall", "phone": "902-569-1995", "note": "234 Shakespeare Drive, weekdays 8:00 am to 4:30 pm", "source": "https://townofstratford.ca/government-services/contact-town-of-stratford/" }
   ],
