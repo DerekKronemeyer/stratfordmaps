@@ -9,6 +9,7 @@ const read = (file) => JSON.parse(readFileSync(join('src', file), 'utf8'));
 const site = read('site.json');
 const { categories, maps } = read('maps.json');
 const resources = read('resources.json');
+const lookup = read('lookup.json');
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const mapHref = (m) => (m.source === 'external' ? m.url : `/${m.slug}`);
@@ -51,7 +52,7 @@ ${extraHead}<link rel="stylesheet" href="/static/style.css">
 const facebookLink = `<a class="social" href="${esc(site.facebookUrl)}" target="_blank" rel="noopener" aria-label="Stratford Maps on Facebook" title="Facebook">${icons.facebook}</a>`;
 const logo = '<img src="/static/logo-96.png" alt="" width="36" height="36">';
 
-const navLinks = [['/', 'Maps'], ['/resources', 'Resources'], ['/about', 'About']];
+const navLinks = [['/', 'Maps'], ['/lookup', '<span class="nav-long">Address </span>Lookup'], ['/resources', 'Resources'], ['/about', 'About']];
 const siteHeader = (path) => `<header class="site-header">
   <a class="brand" href="/">${logo}<span>${esc(site.name)}</span></a>
   <nav>${navLinks.map(([href, label]) => `<a href="${href}"${href === path ? ' aria-current="page"' : ''}>${label}</a>`).join('')}${facebookLink}</nav>
@@ -62,14 +63,14 @@ const footer = `<footer class="site-footer">
 </footer>`;
 
 // A normal page: header, content, footer.
-const page = ({ title, description, path, body }) => `${head({ title, description, path })}
-<body class="site">
+const page = ({ title, description, path, body, bodyAttrs = '', scripts = '' }) => `${head({ title, description, path })}
+<body class="site"${bodyAttrs}>
 ${siteHeader(path)}
 <main class="page">
 ${body}
 </main>
 ${footer}
-</body>
+${scripts}</body>
 </html>
 `;
 
@@ -123,6 +124,32 @@ ${resourceGroups.map((group) => `<h2>${esc(group)}</h2>
 ${resources.filter((r) => r.group === group).map(resourceLink).join('\n')}
 </ul>`).join('\n')}
 <p>Know of a resource I should add? ${messageMe}.</p>
+</article>`;
+
+// ---------- Address Lookup ----------
+
+// The address data loads from /static/data/lookup.json (fetch-lookup.mjs); people and phone numbers come from src/lookup.json.
+const checked = new Date(`${lookup.checked}T12:00:00`).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+const phoneLink = (n) => `<a href="tel:${n.replace(/\D/g, '')}">${esc(n)}</a>`;
+const lookupBody = `<article class="lookup">
+<h1>Address Lookup</h1>
+<p class="lede">Type your Stratford address to see your blue bag day, who represents you, your zoning and more.</p>
+<div class="search">
+  <label for="address" class="sr-only">Your address</label>
+  <input id="address" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="address-list" autocomplete="off" spellcheck="false" placeholder="Start typing, like 234 Shakespeare">
+  <ul id="address-list" role="listbox" aria-label="Matching addresses" hidden></ul>
+</div>
+<p id="lookup-status" class="muted" role="status"></p>
+<div id="results" aria-live="polite" hidden></div>
+<section class="everyone">
+  <h2>For all of Stratford</h2>
+  <dl class="phones">
+${lookup.emergency.map((e) => `    <div class="row"><dt>${esc(e.label)}${e.note ? `<br><span class="muted">${esc(e.note)}</span>` : ''}</dt><dd>${phoneLink(e.phone)}</dd></div>`).join('\n')}
+  </dl>
+  <p>${lookup.services.map((s) => `${esc(s.label)}: ${esc(s.value)}`).join(' &middot; ')}</p>
+  <p class="muted">Phone numbers and names were last checked on ${checked}. If something looks wrong, please <a href="${esc(site.facebookUrl)}">let me know on Facebook</a>.</p>
+</section>
+<p class="muted small">This page is for general reference, not an official record. Addresses, wards, districts and collection zones are from the Province of PEI, zoning, parks and flood areas from the Town of Stratford, and bus stops from T3 Transit.</p>
 </article>`;
 
 // ---------- Not found ----------
@@ -193,6 +220,10 @@ cpSync(join('src', 'static'), join(OUT, 'static'), { recursive: true });
 
 writePage('', page({ title: `${site.name} | maps of Stratford, PEI`, description: site.tagline, path: '/', body: homeBody }));
 writePage('about', page({ title: `About | ${site.name}`, description: 'About Stratford Maps, an independent mapping project.', path: '/about', body: aboutBody }));
+writePage('lookup', page({ title: `Address Lookup | ${site.name}`, description: 'Look up your Stratford address: blue bag day, councillors, MLA, MP, zoning, flood risk and more.', path: '/lookup', body: lookupBody,
+  bodyAttrs: ' data-lookup="/static/data/lookup.json"', scripts: `<script>window.LOOKUP_INFO = ${JSON.stringify(lookup)};</script>
+<script src="/static/lookup.js"></script>
+` }));
 writePage('resources', page({ title: `Resources | ${site.name}`, description: 'Other useful maps and tools for Stratford and PEI.', path: '/resources', body: resourcesBody }));
 writeFileSync(join(OUT, '404.html'), bust(page({ title: `Page not found | ${site.name}`, description: 'Page not found.', body: notFoundBody })));
 writePage('home', redirect('/'));
