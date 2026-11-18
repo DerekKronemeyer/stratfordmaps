@@ -30,7 +30,8 @@
 
   const ESRI = { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Imagery &copy; Esri, Vantor, City of Charlottetown, Earthstar Geographics' };
   const bases = {
-    aerial: { name: 'Aerial', tiles: [ESRI.url], maxzoom: 18, attribution: ESRI.attribution },
+    // Esri's aerial is not offered in the menu: it only fills in around the Town's photos (`under`).
+    aerial: { name: 'Aerial', tiles: [ESRI.url], maxzoom: 18, attribution: ESRI.attribution, hidden: true },
     // The Town's photos only cover Stratford, so Esri's aerial shows underneath (`under`).
     town2025: { name: 'Aerial 2025 (Town)', tiles: ['https://tiles.stratfordmaps.ca/aerial-2025/{z}/{x}/{y}.webp'], minzoom: 12, maxzoom: 18, bounds: [-63.1336, 46.1837, -63.0181, 46.2502], attribution: 'Imagery &copy; Town of Stratford, from the Province of PEI (2025)', under: 'aerial' },
     town2018: { name: 'Aerial 2018 (Town, detailed)', tiles: ['https://tiles.stratfordmaps.ca/aerial-2018/{z}/{x}/{y}.webp'], minzoom: 12, maxzoom: 20, bounds: [-63.1335, 46.186, -63.0265, 46.2505], attribution: 'Imagery &copy; Town of Stratford (2018)', under: 'aerial' },
@@ -133,7 +134,7 @@
         this.el = document.createElement('div');
         this.el.className = 'maplibregl-ctrl bg-ctrl';
         this.el.innerHTML = `<div class="maplibregl-ctrl-group"><button type="button" class="bg-btn" aria-label="Background" title="Background" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3 2 8l10 5 10-5-10-5zM2 13l10 5 10-5M2 18l10 5 10-5" transform="translate(0 -1.5) scale(1 .92)"/></svg></button></div>
-<div class="bg-menu" role="menu" hidden>${Object.entries(bases).map(([k, b]) => `<button type="button" role="menuitemradio" data-base="${k}" aria-checked="${k === startBase}">${esc(b.name)}</button>`).join('')}</div>`;
+<div class="bg-menu" role="menu" hidden>${Object.entries(bases).filter(([, b]) => !b.hidden).map(([k, b]) => `<button type="button" role="menuitemradio" data-base="${k}" aria-checked="${k === startBase}">${esc(b.name)}</button>`).join('')}</div>`;
         const btn = this.el.querySelector('.bg-btn');
         const menu = this.el.querySelector('.bg-menu');
         const open = (on) => { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };

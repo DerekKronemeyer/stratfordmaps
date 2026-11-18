@@ -23,7 +23,7 @@ src/  ── node build.mjs ──► dist/ ──► Cloudflare Workers (static
 - **Photos:** any `{{image url}}` in a description is copied into `src/static/data/photos/` by the fetch, so the site never hotlinks.
 - **Shareable links:** `/walking?layers=best,winter&feature=fullertons-creek-conservation-park` opens the Walking map with only those layers on and that place's popup open. Friendly layer names come from `layers` in `src/maps.json`; places are matched on their permanent `id` field.
 - **On phones**, each map opens zoomed to fit what's switched on; on desktop it opens on the view set in uMap.
-- **Backgrounds** (top-right button): the Town of Stratford's 2025 aerial photos (the default, with Esri aerial around the town), Esri aerial, the Town's more detailed 2018 photos, and OpenStreetMap streets. The Town's photos are served from a Cloudflare R2 bucket (`stratfordmaps-tiles`, at `tiles.stratfordmaps.ca/aerial-2018/` and `/aerial-2025/`, as `{z}/{x}/{y}.webp`): the Town's tiles converted to WebP, with empty tiles dropped and the black fill outside the photo area made transparent so Esri shows through.
+- **Backgrounds** (top-right button): the Town of Stratford's 2025 aerial photos (the default), the Town's more detailed 2018 photos, and OpenStreetMap streets. Esri aerial fills in around the Town's photos but is not offered on its own. The Town's photos are served from a Cloudflare R2 bucket (`stratfordmaps-tiles`, at `tiles.stratfordmaps.ca/aerial-2018/` and `/aerial-2025/`, as `{z}/{x}/{y}.webp`): the Town's tiles converted to WebP, with empty tiles dropped and the black fill outside the photo area made transparent so Esri shows through.
 
 ### Why uMap?
 
