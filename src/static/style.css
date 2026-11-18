@@ -122,10 +122,10 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .sw-icon { width: 22px; text-align: center; background: none; font-size: 1rem; line-height: 1; }
 /* Pins, popups and MapLibre's own controls, restyled to match the dark theme */
 .pin { display: flex; flex-direction: column; align-items: center; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; }
-.pin-head { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--pin-color); border: 2px solid var(--pin-ring, #fff); box-shadow: 0 2px 6px rgba(0,0,0,.45); color: #1f2125; font-weight: 700; font-size: 0.8rem; margin-bottom: 4px; }
+.pin-head { display: grid; place-items: center; width: calc(28px * var(--pin-scale, 1)); height: calc(28px * var(--pin-scale, 1)); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--pin-color); border: 2px solid var(--pin-ring, #fff); box-shadow: 0 2px 6px rgba(0,0,0,.45); color: #1f2125; font-weight: 700; font-size: calc(0.8rem * var(--pin-scale, 1)); margin-bottom: calc(4px * var(--pin-scale, 1)); }
 .pin-head b { transform: rotate(45deg); line-height: 1; }
-.pin-head b:not(:empty) { font-size: 0.85rem; }
-.pin-label { position: absolute; left: 30px; top: 2px; white-space: nowrap; padding: 2px 7px; border-radius: 6px; background: rgba(31,33,37,.85); color: var(--text); font-size: 0.8rem; font-weight: 600; pointer-events: none; }
+.pin-head b:not(:empty) { font-size: calc(0.85rem * var(--pin-scale, 1)); }
+.pin-label { position: absolute; left: calc(30px * var(--pin-scale, 1)); top: 2px; white-space: nowrap; padding: 2px 7px; border-radius: 6px; background: rgba(31,33,37,.85); color: var(--text); font-size: 0.8rem; font-weight: 600; pointer-events: none; }
 .maplibregl-popup-content { max-height: 60vh; overflow: auto; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; font-size: 0.9rem; line-height: 1.5; box-shadow: 0 4px 16px rgba(0,0,0,.45); }
 .maplibregl-popup-content h3 { margin: 0 24px 6px 0; font-size: 1rem; }
 .maplibregl-popup-content p { margin: 0 0 8px; color: var(--muted); }

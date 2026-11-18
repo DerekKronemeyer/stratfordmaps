@@ -165,6 +165,17 @@
     // thinner when the whole town is in view, thicker down at street and trail level.
     const LINE_SCALE = [[12, 0.4], [13, 0.55], [15, 1], [17, 1.7], [19, 2.3]];
     const widthAt = (w) => ['interpolate', ['linear'], ['zoom'], ...LINE_SCALE.flatMap(([z, k]) => [z, ['*', w, k]])];
+    // Pins follow the same scale, held between 0.7 and 1.5 so they stay tappable zoomed out and not huge zoomed in.
+    const scaleAt = (zoom) => {
+      const i = LINE_SCALE.findIndex(([z]) => z >= zoom);
+      if (i === 0) return LINE_SCALE[0][1];
+      if (i === -1) return LINE_SCALE.at(-1)[1];
+      const [[z0, k0], [z1, k1]] = [LINE_SCALE[i - 1], LINE_SCALE[i]];
+      return k0 + ((k1 - k0) * (zoom - z0)) / (z1 - z0);
+    };
+    const scalePins = () => map.getContainer().style.setProperty('--pin-scale', Math.min(1.5, Math.max(0.7, scaleAt(map.getZoom()))).toFixed(3));
+    scalePins();
+    map.on('zoom', scalePins);
     const baseFilter = {}; // MapLibre layer id -> its geometry filter (the show or component filter is added on top)
     // What is visible: in Layers mode the layer checkboxes and Show choice; in components mode the ticked components.
     const extraFilter = () => (mode === 'components' ? ['in', ['get', '_comp'], ['literal', [...picked]]] : showFilter());
@@ -212,7 +223,7 @@
         const points = l.features.filter((f) => f.geometry.type === 'Point');
         if (!points.length) continue;
         if (!l.pins) {
-          add(l, { id: `${l.key}-point`, type: 'circle', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': style('color', l.color), 'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 17, 7], 'circle-stroke-color': '#fff', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 16, 1.5] } }, true);
+          add(l, { id: `${l.key}-point`, type: 'circle', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': style('color', l.color), 'circle-radius': widthAt(5), 'circle-stroke-color': '#fff', 'circle-stroke-width': widthAt(1.5) } }, true);
           continue;
         }
         markers[l.key] = points.map((f) => {
