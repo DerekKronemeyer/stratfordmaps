@@ -1,0 +1,41 @@
+{
+  "_note": "Kept by hand. People and phone numbers change: check each one against its source and update 'checked' whenever you do. The address data itself comes from `node fetch-lookup.mjs`.",
+  "checked": "2026-11-18",
+  "wards": {
+    "Kellys Cove": { "number": 1, "name": "Kelly's Cove", "councillors": ["Gordie Cox", "Ron Dowling"] },
+    "Stewarts Cove": { "number": 2, "name": "Stewart Cove", "councillors": ["Jill Chandler", "Jeff MacDonald"] },
+    "Tea Hill": { "number": 3, "name": "Tea Hill", "councillors": ["Steve Gallant (Deputy Mayor)", "Seat vacant (Jody Jackson resigned)"] }
+  },
+  "mayor": "Steve Ogden",
+  "_nextCouncil": "Elected 2026-11-02, not sworn in yet. Swap into 'wards' when they take office: Ward 1 Gordie Cox, Dylan Cooper; Ward 2 Jeff McEntee, Patrick Ross (acclaimed); Ward 3 Steve Gallant, Ron Dowling; Mayor Steve Ogden (acclaimed). Source: https://results.electionspei.ca/stratford/index.html",
+  "councilContact": { "label": "Mayor and Council (Town of Stratford)", "url": "https://townofstratford.ca/government-services/contact-town-of-stratford/mayor-council/" },
+  "districts": {
+    "Stratford - Keppoch": { "name": "Stratford-Keppoch", "mla": "Jill Burridge", "party": "Progressive Conservative" },
+    "Mermaid - Stratford": { "name": "Mermaid-Stratford", "mla": "Jenn Redmond", "party": "Progressive Conservative" }
+  },
+  "mlaSource": { "label": "Members (Legislative Assembly of PEI)", "url": "https://www.assembly.pe.ca/members" },
+  "riding": { "name": "Cardigan", "mp": "Kent MacDonald", "party": "Liberal" },
+  "mpSource": { "label": "Find your MP (House of Commons)", "url": "https://www.ourcommons.ca/members/en" },
+  "zones": {
+    "A1": "Agricultural Reserve", "C1": "General Commercial", "C2": "Highway Commercial", "C3": "Neighbourhood Commercial", "CMU": "Core Mixed Use",
+    "M1": "Business Park", "M2": "Light Industrial", "MRC": "Mason Road Commercial", "MRMU": "Mason Road Mixed Use", "MRR": "Mason Road Residential",
+    "O1": "Open Space", "PSI": "Public Service Institutional", "PURD": "Planned Unit Residential Development", "R1": "Low Density Residential",
+    "R1L": "Low Density Residential Large Lot", "R2": "Medium Density Residential", "R3": "Multiple Unit Residential", "SS": "Sustainable Subdivision Overlay",
+    "TCC": "Town Centre Commercial", "TCI": "Town Centre Institutional", "TCMU": "Town Centre Mixed Use", "TCR": "Town Centre Residential",
+    "UC": "Urban Core", "WMU": "Waterfront Mixed Use", "WPS": "Waterfront Public Space", "WR": "Waterfront Residential"
+  },
+  "zoningSource": { "label": "Zoning and Development Bylaw #45 (PDF)", "url": "https://www.shape.townofstratford.ca/wp-content/uploads/2023/04/Bylaw-45-Zoning-and-Development-Bylaw-March-2023.pdf" },
+  "wasteSource": { "label": "Island Waste Management Corporation", "url": "https://www.iwmc.pe.ca/" },
+  "emergency": [
+    { "label": "Emergency (police, fire, ambulance)", "phone": "911" },
+    { "label": "RCMP Stratford Detachment, non-emergency", "phone": "902-367-9300", "note": "4 Georgetown Road, weekdays", "source": "https://rcmp.ca/en/pei/detachments" },
+    { "label": "Crossroads Fire Department, non-emergency", "phone": "902-569-3473", "note": "Unmonitored answering machine, checked every few days. For a fire or any emergency, call 911." },
+    { "label": "Town water and sewer emergencies, after hours", "phone": "902-626-2177", "source": "https://townofstratford.ca/government-services/contact-town-of-stratford/" },
+    { "label": "Town Hall", "phone": "902-569-1995", "note": "234 Shakespeare Drive, weekdays 8:00 am to 4:30 pm", "source": "https://townofstratford.ca/government-services/contact-town-of-stratford/" }
+  ],
+  "services": [
+    { "label": "Fire", "value": "Crossroads Fire Department" },
+    { "label": "Police", "value": "RCMP" },
+    { "label": "Ambulance", "value": "Island EMS" }
+  ]
+}
