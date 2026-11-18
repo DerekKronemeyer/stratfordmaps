@@ -131,7 +131,7 @@ ${resources.filter((r) => r.group === group).map(resourceLink).join('\n')}
 // ---------- Address Lookup ----------
 
 // The address data loads from /static/data/lookup.json (fetch-lookup.mjs); people and phone numbers come from src/lookup.json.
-const checked = new Date(`${lookup.checked}T12:00:00`).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+const checked = new Date(`${lookup.checked}T12:00:00`).toLocaleDateString('en-CA', { year: 'numeric', month: 'long' }); // month and year only, never the day
 const phoneLink = (n) => `<a href="tel:${n.replace(/\D/g, '')}">${esc(n)}</a>`;
 const lookupBody = `<article class="lookup">
 <h1>Address Lookup</h1>
@@ -149,7 +149,7 @@ const lookupBody = `<article class="lookup">
 ${lookup.emergency.map((e) => `    <div class="row"><dt>${esc(e.label)}${e.note ? `<br><span class="muted">${esc(e.note)}</span>` : ''}</dt><dd>${phoneLink(e.phone)}</dd></div>`).join('\n')}
   </dl>
   <p>${lookup.services.map((s) => `${esc(s.label)}: ${esc(s.value)}`).join(' &middot; ')}</p>
-  <p class="muted">Phone numbers and names were last checked on ${checked}. If something looks wrong, please <a href="${esc(site.facebookUrl)}">let me know on Facebook</a>.</p>
+  <p class="muted">Phone numbers and names were last checked in ${checked}. If something looks wrong, please <a href="${esc(site.facebookUrl)}">let me know on Facebook</a>.</p>
 </section>
 <p class="muted small">This page is for general reference, not an official record. Addresses, wards, districts and collection zones are from the Province of PEI, zoning and flood areas from the Town of Stratford, bus stops from T3 Transit, and parks and playgrounds from my <a href="/parks">Parks map</a>. Addresses looked up here are counted, see <a href="/about#privacy">Privacy</a>.</p>
 </article>`;

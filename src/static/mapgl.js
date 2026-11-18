@@ -369,7 +369,7 @@ ${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['pla
         if (narrow) show(null); // phones: get the panel out of the way of the map
       }
     });
-    const updated = data.updated ? new Date(data.updated).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Halifax' }) : '';
+    const updated = data.updated ? new Date(data.updated).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', timeZone: 'America/Halifax' }) : ''; // month and year only, never the day
     // The map's description from uMap (links allowed), or the card text if uMap has none.
     document.getElementById('info-panel').innerHTML = `${richText(data.description || cfg.description)}${updated ?`<p class="updated">Updated ${updated}</p>` : ''}`;
 
