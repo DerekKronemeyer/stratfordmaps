@@ -107,6 +107,8 @@ const aboutBody = `<article class="prose">
 <p>I also build maps like these for other municipalities and organizations. If your community has information that would be easier to understand on a map, such as trails, parks, wards or local services, I&rsquo;d be happy to talk about what that could look like. Email <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.</p>
 <h2>Independence</h2>
 <p>Stratford Maps is an independent project. It is <strong>not affiliated with, or endorsed by, the Town of Stratford</strong> or any government agency. The maps come from public sources and my own work, and they may not reflect the most recent changes, so please check official sources before relying on anything important.</p>
+<h2 id="privacy">Privacy</h2>
+<p>I count visits with Cloudflare Web Analytics, which doesn&rsquo;t use cookies. The Address Lookup also records which addresses are looked up and when, so I can see how it&rsquo;s being used. It doesn&rsquo;t record anything about who did the search, like your IP address, and I never share it.</p>
 <h2 id="feedback">Feedback</h2>
 <p>Have a question, spotted something that looks off, or know of something I should add? I&rsquo;d like to hear from you. These maps are always a work in progress, and corrections and ideas help make them better for everyone. ${messageMe}.</p>
 <h2>Credits</h2>
@@ -149,7 +151,7 @@ ${lookup.emergency.map((e) => `    <div class="row"><dt>${esc(e.label)}${e.note 
   <p>${lookup.services.map((s) => `${esc(s.label)}: ${esc(s.value)}`).join(' &middot; ')}</p>
   <p class="muted">Phone numbers and names were last checked on ${checked}. If something looks wrong, please <a href="${esc(site.facebookUrl)}">let me know on Facebook</a>.</p>
 </section>
-<p class="muted small">This page is for general reference, not an official record. Addresses, wards, districts and collection zones are from the Province of PEI, zoning and flood areas from the Town of Stratford, bus stops from T3 Transit, and parks and playgrounds from my <a href="/parks">Parks map</a>.</p>
+<p class="muted small">This page is for general reference, not an official record. Addresses, wards, districts and collection zones are from the Province of PEI, zoning and flood areas from the Town of Stratford, bus stops from T3 Transit, and parks and playgrounds from my <a href="/parks">Parks map</a>. Addresses looked up here are counted, see <a href="/about#privacy">Privacy</a>.</p>
 </article>`;
 
 // ---------- Not found ----------

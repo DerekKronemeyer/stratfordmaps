@@ -138,10 +138,20 @@
     results.hidden = false;
   };
 
-  const choose = (a) => {
+  // Counts each lookup on the live site (see src/worker.js): just the address and whether it came from
+  // the search box or a shared link. Picking the same address again in a row isn't counted twice.
+  let lastLogged = '';
+  const logLookup = (address, how) => {
+    if (address === lastLogged || location.hostname !== 'www.stratfordmaps.ca') return;
+    lastLogged = address;
+    try { navigator.sendBeacon('/api/lookup', JSON.stringify({ address, how })); } catch { /* counting is optional */ }
+  };
+
+  const choose = (a, how = 'search') => {
     input.value = label(a);
     closeList();
     render(a);
+    logLookup(label(a), how);
     const url = new URL(location.href);
     url.searchParams.set('address', label(a));
     history.replaceState(null, '', url);
@@ -151,6 +161,6 @@
   const start = new URLSearchParams(location.search).get('address');
   if (start) load.then(() => {
     const a = entries.find((e) => label(e).toLowerCase() === start.toLowerCase()) || search(start)[0];
-    if (a) choose(a); else { input.value = start; status.textContent = 'That address was not found.'; }
+    if (a) choose(a, 'link'); else { input.value = start; status.textContent = 'That address was not found.'; }
   });
 })();

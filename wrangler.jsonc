@@ -4,9 +4,14 @@
   "compatibility_date": "2026-11-01",
   // Served only at www.stratfordmaps.ca (custom domain), not at a duplicate workers.dev address.
   "workers_dev": false,
+  // src/worker.js handles /api/lookup (Address Lookup counts) and hands everything else to the static files.
+  "main": "src/worker.js",
   "assets": {
     "directory": "./dist",
     "html_handling": "drop-trailing-slash",
-    "not_found_handling": "404-page"
-  }
+    "not_found_handling": "404-page",
+    "binding": "ASSETS"
+  },
+  // Address Lookup counts. Query them in the Cloudflare dashboard: Storage & databases > D1 > stratfordmaps-stats > Console.
+  "d1_databases": [{ "binding": "DB", "database_name": "stratfordmaps-stats", "database_id": "f79b7e00-6ca9-4def-ba4c-d3f2be217e10" }]
 }
