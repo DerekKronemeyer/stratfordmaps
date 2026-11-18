@@ -1,11 +1,11 @@
 // Builds src/static/data/lookup.json for the Address Lookup page: every Stratford civic address with its
-// ward, provincial district, collection days, zoning, flood areas (at the house, or over 10% of the lot) and nearest bus stop, park and playground.
+// ward, provincial district, collection days, zoning, flood areas (at the house, or over 10% of the lot) and nearest bus stop, plus the nearest park and playground from the Parks map.
 // Usage: `node fetch-lookup.mjs`. Needs read access to the PEI data hub database; the command that runs
 // psql against it comes from HUB_PSQL in a local .env file (not committed), for example:
 //   HUB_PSQL=ssh you@server docker exec -i db psql -U user -d datahub -At
 // The output is committed, so building and deploying never depend on the hub being up.
 // People and phone numbers are not here: they live in src/lookup.json and are kept by hand.
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 
@@ -43,13 +43,7 @@ select json_build_object(
       where f.dataset_id = 'stratford_coastal_flood' and st_intersects(f.geom, lot.geom)
       group by 1) x where share >= 0.1),
   'stop', (select json_build_object('name', s.name, 'm', round(st_distance(s.geom::geography, a.geom::geography)), 'routes', s.routes)
-           from stops s order by s.geom <-> a.geom limit 1),
-  'park', (select json_build_object('name', p.attrs->>'Name', 'm', round(st_distance(p.geom::geography, a.geom::geography)))
-           from canonical.feature p where p.dataset_id = 'stratford_parks_open_space' and p.attrs->>'Name' ~* '\mpark\M' and p.attrs->>'Name' !~* '^open space|dog park|skate park|business park'
-           order by p.geom <-> a.geom limit 1),
-  'playground', (select json_build_object('name', p.attrs->>'name', 'm', round(st_distance(p.geom::geography, a.geom::geography)))
-           from canonical.feature p where p.dataset_id = 'pei_recreation_facilities' and p.attrs->>'type' = 'Park Playground'
-           order by p.geom <-> a.geom limit 1)
+           from stops s order by s.geom <-> a.geom limit 1)
 ) from addr a
 left join lateral (select l.geom from canonical.feature l where l.dataset_id = 'pei_parcels' and st_intersects(l.geom, a.geom) limit 1) lot on true
 order by a.street, a.no;
@@ -70,12 +64,47 @@ const ref = (list, value) => {
   return items.index.get(key);
 };
 
-// A few playground names in the Province's data are misspelled; these match the Town's park names.
-const FIX = {
-  "Fullterton's Creek Conservation Park": 'Fullertons Creek Conservation Park', 'Patridge Park': 'Partridge Lane Park', 'Bunbary Park': 'Bunbury Park',
-  'Willliams Gate Park': 'Williams Gate Park', 'Ponside Park': 'Pondside Park', 'Kinloch Park': 'Kinlock Park',
+// Nearest park and playground come from the site's own Parks map (src/static/data/parks.json, from uMap),
+// so run `node fetch-umap.mjs parks` first when the Parks map has changed.
+const parksMap = JSON.parse(readFileSync(join('src', 'static', 'data', 'parks.json'), 'utf8'));
+const named = (layer) => parksMap.layers.find((l) => l.name === layer).features
+  .map((f) => ({ name: (f.properties.name || '').split('\n')[0].replace(/\s*\+\s*$/, '').trim(), geometry: f.geometry }))
+  .filter((f) => f.name);
+const parks = named('Parks'), playgrounds = named('Playgrounds');
+
+// Flat metres around Stratford, close enough for distances of a few kilometres.
+const toXY = ([lon, lat]) => [lon * 111320 * Math.cos((46.22 * Math.PI) / 180), lat * 110574];
+const segDist = (p, a, b) => {
+  const [dx, dy] = [b[0] - a[0], b[1] - a[1]];
+  const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
 };
-const fix = (name) => FIX[name.trim()] ?? name.trim();
+const inRing = (p, ring) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [a, b] = [ring[i], ring[j]];
+    if ((a[1] > p[1]) !== (b[1] > p[1]) && p[0] < ((b[0] - a[0]) * (p[1] - a[1])) / (b[1] - a[1]) + a[0]) inside = !inside;
+  }
+  return inside;
+};
+// Distance from a point to a feature: 0 inside a polygon, otherwise to its nearest edge.
+const distanceTo = (p, g) => {
+  if (g.type === 'Point') return Math.hypot(...toXY(g.coordinates).map((v, i) => v - p[i]));
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+  let best = Infinity;
+  for (const rings of polys) {
+    const xy = rings.map((r) => r.map(toXY));
+    if (inRing(p, xy[0]) && !xy.slice(1).some((h) => inRing(p, h))) return 0;
+    for (const r of xy) for (let i = 1; i < r.length; i++) best = Math.min(best, segDist(p, r[i - 1], r[i]));
+  }
+  return best;
+};
+const nearest = (list, lon, lat) => {
+  const p = toXY([lon, lat]);
+  let best = null;
+  for (const f of list) { const m = distanceTo(p, f.geometry); if (!best || m < best.m) best = { name: f.name, m }; }
+  return best && [best.name, Math.round(best.m)];
+};
 
 // Street names come in capitals with short endings ("SAULS PRIDE CR"): spell them out the way people write them.
 const ENDINGS = { AV: 'Avenue', BL: 'Boulevard', CL: 'Close', CR: 'Crescent', CRT: 'Court', DR: 'Drive', GT: 'Gate', HT: 'Heights', HTS: 'Heights', HWY: 'Highway', LG: 'Landing', LN: 'Lane', PL: 'Place', RD: 'Road', RW: 'Row', ST: 'Street', TERR: 'Terrace', WY: 'Way' };
@@ -89,11 +118,14 @@ const streetName = (s) => {
 const addresses = rows.map((r) => [
   r.no, ref('streets', streetName(r.street)), r.lon, r.lat,
   ref('wards', r.ward), ref('districts', r.district), ref('collection', r.cart && { cart: r.cart, bluebag: r.bluebag }),
-  ref('zones', r.zones?.sort() ?? null), // The house point being in a flood area is the stronger warning; otherwise the lot counts if at least 10% of it is.
+  ref('zones', r.zones?.sort() ?? null),
+  // The house point being in a flood area is the stronger warning; otherwise the lot counts if at least 10% of it is.
   ref('flood', r.flood ? { where: 'house', types: r.flood.sort() } : r.lotflood ? { where: 'lot', types: r.lotflood.sort() } : null),
   r.stop && [ref('stops', { name: r.stop.name, routes: r.stop.routes ? r.stop.routes.split('|') : [] }), r.stop.m],
-  r.park && [ref('parks', fix(r.park.name)), r.park.m],
-  r.playground && [ref('playgrounds', fix(r.playground.name)), r.playground.m],
+  ...[parks, playgrounds].map((list, i) => {
+    const n = nearest(list, r.lon, r.lat);
+    return n && [ref(i ? 'playgrounds' : 'parks', n[0]), n[1]];
+  }),
 ]);
 
 const out = {

@@ -149,7 +149,7 @@ ${lookup.emergency.map((e) => `    <div class="row"><dt>${esc(e.label)}${e.note 
   <p>${lookup.services.map((s) => `${esc(s.label)}: ${esc(s.value)}`).join(' &middot; ')}</p>
   <p class="muted">Phone numbers and names were last checked on ${checked}. If something looks wrong, please <a href="${esc(site.facebookUrl)}">let me know on Facebook</a>.</p>
 </section>
-<p class="muted small">This page is for general reference, not an official record. Addresses, wards, districts and collection zones are from the Province of PEI, zoning, parks and flood areas from the Town of Stratford, and bus stops from T3 Transit.</p>
+<p class="muted small">This page is for general reference, not an official record. Addresses, wards, districts and collection zones are from the Province of PEI, zoning and flood areas from the Town of Stratford, bus stops from T3 Transit, and parks and playgrounds from my <a href="/parks">Parks map</a>.</p>
 </article>`;
 
 // ---------- Not found ----------
