@@ -106,7 +106,9 @@
     const boundsOf = (features) => features.flatMap((f) => allCoords(f.geometry.coordinates))
       .reduce(([[w, s], [e, n]], [x, y]) => [[Math.min(w, x), Math.min(s, y)], [Math.max(e, x), Math.max(n, y)]], [[180, 90], [-180, -90]]);
     // Show: all, planned (not done) or completed features. ?show=completed in a link picks one.
-    let showMode = done && ['planned', 'completed'].includes(params.get('show')) ? params.get('show') : 'all';
+    // `done.default` sets the starting choice and `done.labels` renames the three buttons (e.g. Wildlife's Confirmed).
+    const showDefault = done?.default || 'all';
+    let showMode = done && ['all', 'planned', 'completed'].includes(params.get('show')) ? params.get('show') : showDefault;
     const showOk = (p) => showMode === 'all' || (showMode === 'completed') === isDone(p);
     const showFilter = () => (showMode === 'all' ? true : showMode === 'completed' ? doneExpr : ['!', doneExpr]);
     // Maps with an aerial background in uMap open on the Town's 2025 photos (one consistent look across Stratford).
@@ -305,12 +307,12 @@
       const padding = narrow ? 40 : { top: 60, bottom: 60, left: 360, right: 60 };
       map.fitBounds(boundsOf(features), { padding, maxZoom: 17, animate });
     }
-    // Back to how the selections first open: default layers, Show all, every component ticked.
+    // Back to how the selections first open: default layers, the default Show choice, every component ticked.
     // The map stays where it is.
     function resetView() {
       popup?.remove();
       data.layers.forEach((l, i) => { l.show = defaultShow[i]; });
-      showMode = 'all';
+      showMode = showDefault;
       picked = new Set(comps.keys());
       refresh();
     }
@@ -327,7 +329,7 @@
     const layerInput = cfg.oneLayer ? 'type="radio" name="layer"' : 'type="checkbox"';
     // Listed top layer first, the same order as uMap's layer list (the data runs bottom layer first).
     const layersHtml = () => `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).reverse().join('')}</fieldset>
-${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}`;
+${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label], i) => [k, done.labels?.[i] || label]).map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {
       const doneCount = c.features.filter((f) => isDone(f.properties)).length;
