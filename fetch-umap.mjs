@@ -33,6 +33,8 @@ const round = (c) => (typeof c === 'number' ? Math.round(c * 1e6) / 1e6 : c.map(
 // Photos ({{url}} in any text) are copied into src/static/data/photos/ so the site never hotlinks.
 // Photos kept on the uMap server (/uploads/photos/<map>/<file>) keep their path; others get a hashed name.
 const localPhoto = async (url) => {
+  // iNaturalist's open-data photos stay as links: thousands of sightings would bloat the site, and that bucket is meant for reuse.
+  if (/^https:\/\/inaturalist-open-data\.s3\.amazonaws\.com\//.test(url)) return url;
   const own = url.match(/\/uploads\/photos\/(.+)$/);
   const ext = (url.match(/\.(jpe?g|png|webp|gif)(?:\?|$)/i) || [, 'jpg'])[1].toLowerCase();
   const name = own ? decodeURIComponent(own[1]) : `ext/${createHash('md5').update(url).digest('hex').slice(0, 12)}.${ext}`;
@@ -76,7 +78,9 @@ for (const m of targets) {
   const keyFor = Object.fromEntries(Object.entries(m.layers || {}).map(([key, uuid]) => [uuid, key]));
   const usedKeys = new Set();
   const layers = [];
+  // `skipLayers` in maps.json names uMap layers to leave off the site (kept in uMap for reference).
   for (const dl of map.datalayers) {
+    if ((m.skipLayers || []).includes(dl.properties?.name ?? dl.name)) continue;
     const fc = await getJson(`${UMAP_URL}/en/datalayer/${id}/${dl.id}/`);
     const o = { ...(dl.properties || {}), ...(fc._umap_options || {}) };
     let key = keyFor[dl.id] || slugify(o.name || 'layer');

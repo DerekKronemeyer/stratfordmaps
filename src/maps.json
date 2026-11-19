@@ -143,6 +143,16 @@
    "background": "dark"
   },
   {
+   "slug": "wildlife",
+   "title": "Wildlife",
+   "category": "environmental",
+   "description": "Plants and animals people have photographed in Stratford and shared on iNaturalist since 2016.",
+   "source": "umap",
+   "umap": "wildlife_18",
+   "skipLayers": ["Birds (eBird)"],
+   "thumb": "/static/thumbs/wildlife.jpg"
+  },
+  {
    "slug": "house-stats",
    "title": "House Stats",
    "category": "town-info",
