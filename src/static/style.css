@@ -137,6 +137,14 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .mode-toggle button[aria-pressed="true"] { background: var(--surface-hover); color: var(--text); }
 .comps .comp-all { border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; }
 .map-panel .all-row { border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; }
+.map-panel .key-head, .map-panel .key-head span { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.map-panel .clear-filters { display: block; padding: 0; margin: 0 0 6px; background: none; border: 0; font-family: inherit; cursor: pointer; }
+.map-panel .clear-filters:hover { color: var(--text); text-decoration: underline; }
+.map-panel .seg-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.95rem; }
+.map-panel .seg { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.map-panel .seg button { padding: 5px 12px; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; }
+.map-panel .seg button + button { border-left: 1px solid var(--border); }
+.map-panel .seg button[aria-pressed="true"] { background: var(--surface-hover); color: var(--text); }
 .comp { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
 .comp-name { display: flex; gap: 4px; flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 3px 0; font: inherit; font-size: 0.88rem; line-height: 1.3; color: var(--text); cursor: pointer; }
 .comp-name:hover { color: var(--accent); }

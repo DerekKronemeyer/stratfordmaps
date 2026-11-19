@@ -106,7 +106,7 @@
     const boundsOf = (features) => features.flatMap((f) => allCoords(f.geometry.coordinates))
       .reduce(([[w, s], [e, n]], [x, y]) => [[Math.min(w, x), Math.min(s, y)], [Math.max(e, x), Math.max(n, y)]], [[180, 90], [-180, -90]]);
     // Show: all, planned (not done) or completed features. ?show=completed in a link picks one.
-    // `done.default` sets the starting choice and `done.labels` renames the three buttons (e.g. Wildlife's Confirmed).
+    // `done.default` sets the starting choice (e.g. Wildlife starts on Yes: confirmed only).
     const showDefault = done?.default || 'all';
     let showMode = done && ['all', 'planned', 'completed'].includes(params.get('show')) ? params.get('show') : showDefault;
     const showOk = (p) => showMode === 'all' || (showMode === 'completed') === isDone(p);
@@ -334,10 +334,11 @@
       const name = l.name.replace(/\s*\(\d[\d,]*\)\s*$/, '');
       return l.kind === 'line' || l.features.length < 2 ? name : `${name} (${l.features.filter((f) => showOk(f.properties)).length.toLocaleString('en-CA')})`;
     };
-    // "Select all" above the list on maps with more than one layer to tick (not one-layer maps).
-    const allLayersBox = !cfg.oneLayer && data.layers.length > 1 ? '<label class="all-row"><input type="checkbox" data-layers-all><span>Select all</span></label>' : '';
-    const layersHtml = () => `<fieldset><legend>Layers</legend>${allLayersBox}${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span></label>`).reverse().join('')}</fieldset>
-${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label], i) => [k, done.labels?.[i] || label]).map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}`;
+    // A tick-all box above the list on maps with more than one layer to tick.
+    // On those maps the box is the section heading ("LAYERS"); one-layer maps keep a plain heading.
+    const layersHead = !cfg.oneLayer && data.layers.length > 1 ? '<label class="all-row key-head"><input type="checkbox" data-layers-all aria-label="Select all layers"><span>Layers</span></label>' : '<legend>Layers</legend>';
+    const layersHtml = () => `<fieldset>${layersHead}${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span></label>`).reverse().join('')}</fieldset>
+${done ? `<fieldset class="filters"><button type="button" class="key-head clear-filters" data-clear>Clear filters</button><div class="seg-row"><span>${esc(done.field)}</span><div class="seg" role="group" aria-label="${esc(done.field)}">${[['all', 'All'], ['completed', 'Yes'], ['planned', 'No']].map(([k, label]) => `<button type="button" data-show="${k}" aria-pressed="${k === showMode}">${label}</button>`).join('')}</div></div></fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {
       const doneCount = c.features.filter((f) => isDone(f.properties)).length;
@@ -376,7 +377,6 @@ ${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['pla
         for (const box of keyPanel.querySelectorAll('[data-i]')) box.checked = t.checked;
         refresh();
       }
-      if (t.name === 'show') { setShow(t.value); renderKey(); } // layer counts follow the Show choice
       if (t.dataset.comp) { t.checked ? picked.add(t.dataset.comp) : picked.delete(t.dataset.comp); refresh(); syncAll(); }
       if (t.dataset.all !== undefined) {
         picked = new Set(t.checked ? comps.keys() : []);
@@ -385,6 +385,10 @@ ${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['pla
       }
     });
     keyPanel.addEventListener('click', (e) => {
+      const showBtn = e.target.closest('[data-show]');
+      if (showBtn) { setShow(showBtn.dataset.show); renderKey(); } // layer counts follow the Yes/No choice
+      // Clear filters: every layer on, All.
+      if (e.target.closest('[data-clear]')) { for (const l of data.layers) l.show = true; setShow('all'); renderKey(); }
       const modeBtn = e.target.closest('[data-mode]');
       if (modeBtn && modeBtn.dataset.mode !== mode) { mode = modeBtn.dataset.mode; resetView(); renderKey(); }
       const zoomBtn = e.target.closest('[data-zoom]');
