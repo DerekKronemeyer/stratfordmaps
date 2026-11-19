@@ -328,7 +328,15 @@
     // Checkboxes normally; radio buttons on one-layer maps, so picking a layer switches off the last one.
     const layerInput = cfg.oneLayer ? 'type="radio" name="layer"' : 'type="checkbox"';
     // Listed top layer first, the same order as uMap's layer list (the data runs bottom layer first).
-    const layersHtml = () => `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).reverse().join('')}</fieldset>
+    // Point and area layers with more than one feature show how many are on (e.g. "Birds (517)"), counting only what the Show
+    // choice lets through; a count already typed into the uMap name is dropped so it isn't doubled.
+    const layerLabel = (l) => {
+      const name = l.name.replace(/\s*\(\d[\d,]*\)\s*$/, '');
+      return l.kind === 'line' || l.features.length < 2 ? name : `${name} (${l.features.filter((f) => showOk(f.properties)).length.toLocaleString('en-CA')})`;
+    };
+    // "Select all" above the list on maps with more than one layer to tick (not one-layer maps).
+    const allLayersBox = !cfg.oneLayer && data.layers.length > 1 ? '<label class="all-row"><input type="checkbox" data-layers-all><span>Select all</span></label>' : '';
+    const layersHtml = () => `<fieldset><legend>Layers</legend>${allLayersBox}${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span></label>`).reverse().join('')}</fieldset>
 ${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label], i) => [k, done.labels?.[i] || label]).map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {
@@ -341,6 +349,12 @@ ${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['pla
     };
     const compsHtml = () => `<fieldset class="comps"><legend>${esc(cfg.components.label)}</legend><label class="comp-all"><input type="checkbox" data-all><span>Show all</span></label>${compList.map(compRow).join('')}</fieldset>`;
     const syncAll = () => {
+      const layersAll = keyPanel.querySelector('[data-layers-all]');
+      if (layersAll) {
+        const on = data.layers.filter((l) => l.show).length;
+        layersAll.checked = on === data.layers.length;
+        layersAll.indeterminate = on > 0 && on < data.layers.length;
+      }
       const all = keyPanel.querySelector('[data-all]');
       if (!all) return;
       all.checked = picked.size === comps.size;
@@ -356,8 +370,13 @@ ${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['pla
     keyPanel.addEventListener('change', (e) => {
       const t = e.target;
       if (t.dataset.i && cfg.oneLayer) data.layers.forEach((l, i) => setLayer(l, i === +t.dataset.i));
-      else if (t.dataset.i) setLayer(data.layers[+t.dataset.i], t.checked);
-      if (t.name === 'show') setShow(t.value);
+      else if (t.dataset.i) { setLayer(data.layers[+t.dataset.i], t.checked); syncAll(); }
+      if (t.dataset.layersAll !== undefined) {
+        for (const l of data.layers) l.show = t.checked;
+        for (const box of keyPanel.querySelectorAll('[data-i]')) box.checked = t.checked;
+        refresh();
+      }
+      if (t.name === 'show') { setShow(t.value); renderKey(); } // layer counts follow the Show choice
       if (t.dataset.comp) { t.checked ? picked.add(t.dataset.comp) : picked.delete(t.dataset.comp); refresh(); syncAll(); }
       if (t.dataset.all !== undefined) {
         picked = new Set(t.checked ? comps.keys() : []);
