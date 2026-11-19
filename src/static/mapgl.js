@@ -36,6 +36,8 @@
     town2025: { name: 'Aerial 2025 (Town)', tiles: ['https://tiles.stratfordmaps.ca/aerial-2025b/{z}/{x}/{y}.webp'], minzoom: 12, maxzoom: 18, bounds: [-63.1336, 46.1837, -63.0181, 46.2502], attribution: 'Imagery &copy; Town of Stratford, from the Province of PEI (2025)', under: 'aerial' },
     town2018: { name: 'Aerial 2018 (Town, detailed)', tiles: ['https://tiles.stratfordmaps.ca/aerial-2018/{z}/{x}/{y}.webp'], minzoom: 12, maxzoom: 20, bounds: [-63.1335, 46.186, -63.0265, 46.2505], attribution: 'Imagery &copy; Town of Stratford (2018)', under: 'aerial' },
     streets: { name: 'Streets', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], maxzoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' },
+    // OpenStreetMap's own tiles, colours flipped and muted so bright layers stand out. No key, same source as Streets.
+    dark: { name: 'Streets (dark)', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], maxzoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', paint: { 'raster-brightness-min': 1, 'raster-brightness-max': 0, 'raster-hue-rotate': 180, 'raster-saturation': -0.85, 'raster-contrast': 0.1 } },
   };
   const baseShown = (k, picked) => k === picked || bases[picked]?.under === k;
 
@@ -108,7 +110,8 @@
     const showOk = (p) => showMode === 'all' || (showMode === 'completed') === isDone(p);
     const showFilter = () => (showMode === 'all' ? true : showMode === 'completed' ? doneExpr : ['!', doneExpr]);
     // Maps with an aerial background in uMap open on the Town's 2025 photos (one consistent look across Stratford).
-    const startBase = /World_Imagery|aerial|satellite/i.test(`${data.basemap?.url} ${data.basemap?.name}`) || !data.basemap ? 'town2025' : 'streets';
+    // A map can pick its own starting background in maps.json ("background": "dark").
+    const startBase = bases[cfg.background] ? cfg.background : /World_Imagery|aerial|satellite/i.test(`${data.basemap?.url} ${data.basemap?.name}`) || !data.basemap ? 'town2025' : 'streets';
 
     const map = new maplibregl.Map({
       container: 'map',
@@ -121,7 +124,7 @@
         sources: Object.fromEntries(Object.entries(bases).map(([k, b]) => [`base-${k}`, { type: 'raster', tiles: b.tiles, tileSize: 256, minzoom: b.minzoom || 0, maxzoom: b.maxzoom, ...(b.bounds ? { bounds: b.bounds } : {}), attribution: b.attribution }])),
         layers: [
           { id: 'bg', type: 'background', paint: { 'background-color': '#2a2d32' } },
-          ...Object.keys(bases).map((k) => ({ id: `base-${k}`, type: 'raster', source: `base-${k}`, layout: { visibility: baseShown(k, startBase) ? 'visible' : 'none' } })),
+          ...Object.keys(bases).map((k) => ({ id: `base-${k}`, type: 'raster', source: `base-${k}`, layout: { visibility: baseShown(k, startBase) ? 'visible' : 'none' }, ...(bases[k].paint ? { paint: bases[k].paint } : {}) })),
         ],
       },
     });
@@ -216,7 +219,8 @@
           ? { 'line-color': ['case', doneExpr, done.outline, '#111'], 'line-opacity': ['case', doneExpr, 1, 0.5], 'line-width': widthAt(['+', style('weight', l.weight), ['case', doneExpr, 6, 3]]) }
           : { 'line-color': '#111', 'line-opacity': 0.5, 'line-width': widthAt(['+', style('weight', l.weight), 3]) };
         const lineOpacity = done ? ['case', doneExpr, 1, style('opacity', l.opacity)] : style('opacity', l.opacity);
-        add(l, { id: `${l.key}-casing`, type: 'line', filter: isLine, layout: rounded, paint: casing });
+        // See-through layers (like contour lines) are meant to sit quietly in the background, so they get no edge.
+        if (done || !(l.opacity < 1)) add(l, { id: `${l.key}-casing`, type: 'line', filter: isLine, layout: rounded, paint: casing });
         add(l, { id: `${l.key}-line`, type: 'line', filter: isLine, layout: rounded, paint: { 'line-color': style('color', l.color), 'line-opacity': lineOpacity, 'line-width': widthAt(style('weight', l.weight)) } }, true);
       }
       for (const l of data.layers) {
@@ -321,7 +325,8 @@
     const keyPanel = document.getElementById('key-panel');
     // Checkboxes normally; radio buttons on one-layer maps, so picking a layer switches off the last one.
     const layerInput = cfg.oneLayer ? 'type="radio" name="layer"' : 'type="checkbox"';
-    const layersHtml = () => `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).join('')}</fieldset>
+    // Listed top layer first, the same order as uMap's layer list (the data runs bottom layer first).
+    const layersHtml = () => `<fieldset><legend>Layers</legend>${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(l.name)}</span></label>`).reverse().join('')}</fieldset>
 ${done ? `<fieldset class="inline"><legend>Show</legend>${[['all', 'All'], ['planned', 'Planned'], ['completed', 'Completed']].map(([k, label]) => `<label><input type="radio" name="show" value="${k}"${k === showMode ? ' checked' : ''}><span>${label}</span></label>`).join('')}</fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {

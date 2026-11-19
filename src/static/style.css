@@ -56,6 +56,7 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .thumb--transportation { background-color: #2f4a5c; }
 .thumb--cultural { background-color: #5a4636; }
 .thumb--recreation { background-color: #33533d; }
+.thumb--environmental { background-color: #2d5157; }
 .thumb--town-info { background-color: #4b3a55; }
 
 /* Prose pages */

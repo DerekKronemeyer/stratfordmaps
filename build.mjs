@@ -195,7 +195,7 @@ const mapPage = (m) => `${head({
   <div id="key-panel" class="map-panel" hidden></div>
   <div id="info-panel" class="map-panel map-panel--info" hidden></div>
 </div>
-<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, done: m.done || null, components: m.components || null })};</script>
+<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, done: m.done || null, components: m.components || null })};</script>
 <script src="/static/vendor/maplibre-gl/maplibre-gl.js"></script>
 <script src="/static/mapgl.js"></script>
 </body>

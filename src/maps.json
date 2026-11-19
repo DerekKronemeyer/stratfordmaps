@@ -13,6 +13,10 @@
    "title": "Recreation"
   },
   {
+   "id": "environmental",
+   "title": "Environmental"
+  },
+  {
    "id": "town-info",
    "title": "Town Info"
   }
@@ -127,6 +131,16 @@
    "source": "umap",
    "umap": "public-art_10",
    "thumb": "/static/thumbs/public-art.jpg"
+  },
+  {
+   "slug": "watershed",
+   "title": "Watershed",
+   "category": "environmental",
+   "description": "Stratford's three watersheds, with streams, wetlands, contour lines, flood areas and the 15 m no-build buffer.",
+   "source": "umap",
+   "umap": "watershed_16",
+   "thumb": "/static/thumbs/watershed.jpg",
+   "background": "dark"
   },
   {
    "slug": "house-stats",
