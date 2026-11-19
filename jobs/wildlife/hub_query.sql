@@ -8,7 +8,9 @@ SELECT json_build_object(
   'id', f.source_oid, 'lng', round(ST_X(f.geom)::numeric, 5), 'lat', round(ST_Y(f.geom)::numeric, 5),
   'common', f.attrs->>'common_name', 'sci', f.attrs->>'scientific_name', 'group', f.attrs->>'iconic_taxon',
   'date', f.attrs->>'observed_on', 'grade', f.attrs->>'quality_grade', 'user', f.attrs->>'user_login',
-  'photo', f.attrs->>'photo_url', 'photo_lic', f.attrs->>'photo_license_code')
+  'photo', f.attrs->>'photo_url', 'photo_lic', f.attrs->>'photo_license_code',
+  'taxon_id', f.attrs->'taxon_id', 'photos', f.attrs->'photos', 'sounds', f.attrs->'sounds',
+  'ids', f.attrs->'identifications', 'notes', f.attrs->>'description', 'lineage', f.attrs->'lineage')
 FROM canonical.feature f, town
 WHERE f.dataset_id = 'inat_observations'
   AND f.state IS DISTINCT FROM 'stale'

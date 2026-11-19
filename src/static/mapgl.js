@@ -18,6 +18,8 @@
   // uMap text: {{image url}}, [[url|label]] links, bare URLs, **bold**, *italic*, lists, line breaks.
   const richText = (s) => esc(s)
     .replace(/\{\{((?:https?:\/\/|\/)[^}\s]+)\}\}/g, '<img src="$1" alt="" loading="lazy">')
+    // A link to a sound file becomes a small player ([[https://.../sound.m4a|Recording]]).
+    .replace(/\[\[(https?:\/\/[^|\]\s]+\.(?:mp3|m4a|wav|ogg)(?:\?[^|\]\s]*)?)\|([^\]]+)\]\]/gi, '<audio controls preload="none" src="$1" title="$2"></audio>')
     .replace(/\[\[(https?:\/\/[^|\]]+)\|([^\]]+)\]\]/g, (_, u, t) => link(u, t))
     .replace(/\[\[(https?:\/\/[^\]]+)\]\]/g, (_, u) => link(u, u))
     .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_, pre, u) => `${pre}${link(u, u.replace(/^https?:\/\/(www\.)?/, '').replace(/[/?#].*$/, ''))}`)
@@ -109,8 +111,31 @@
     // `done.default` sets the starting choice (e.g. Wildlife starts on Yes: confirmed only).
     const showDefault = done?.default || 'all';
     let showMode = done && ['all', 'planned', 'completed'].includes(params.get('show')) ? params.get('show') : showDefault;
-    const showOk = (p) => showMode === 'all' || (showMode === 'completed') === isDone(p);
-    const showFilter = () => (showMode === 'all' ? true : showMode === 'completed' ? doneExpr : ['!', doneExpr]);
+    // Date range (`dates` in maps.json, e.g. Wildlife): a preset (all time, last 12 months, last 30 days, last 7 days)
+    // or a custom From/To range. dateFrom null = all dates. Features with no date are hidden while a range is set.
+    const dates = cfg.dates;
+    const allDates = dates ? data.layers.flatMap((l) => l.features.map((f) => String(f.properties[dates.field] || '').slice(0, 10))).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort() : [];
+    let dateFrom = null, dateTo = null, datePreset = 'all', dateMenuOpen = false;
+    const PRESETS = [['all', 'All time'], ['12m', 'Last 12 months'], ['30d', 'Last 30 days'], ['7d', 'Last 7 days'], ['custom', 'Custom range']];
+    const firstDay = () => allDates[0] || '1900-01-01';
+    const lastDay = () => allDates[allDates.length - 1] || '2100-01-01';
+    const dateOk = (p) => !dates || !dateFrom || (String(p[dates.field] || '').slice(0, 10) >= dateFrom && String(p[dates.field] || '').slice(0, 10) <= dateTo);
+    const dateExpr = () => (!dates || !dateFrom ? true : ['all', ['>=', ['slice', ['to-string', ['get', dates.field]], 0, 10], dateFrom], ['<=', ['slice', ['to-string', ['get', dates.field]], 0, 10], dateTo]]);
+    const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
+    // Text search (`search: true` in maps.json): every word typed must appear somewhere in the popup's visible text
+    // (name, extra fields, description without links or photos). Case and accents don't matter. Each feature gets a
+    // hidden _q with that text so MapLibre can filter on it.
+    const fold = (t) => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const visibleText = (l, p) => [p.name, ...extraFields(l, p).map((k) => p[k]),
+      String(p.description || '').replace(/\{\{[^}]*\}\}/g, ' ').replace(/\[\[[^|\]]*\|([^\]]*)\]\]/g, '$1').replace(/\[\[[^\]]*\]\]/g, ' ').replace(/https?:\/\/\S+/g, ' ').replace(/[*]/g, '')].join(' ');
+    if (cfg.search) for (const l of data.layers) for (const f of l.features) f.properties._q = fold(visibleText(l, f.properties)).replace(/\s+/g, ' ');
+    let searchText = '';
+    const words = () => fold(searchText).split(/\s+/).filter(Boolean);
+    const searchOk = (p) => !cfg.search || words().every((w) => (p._q || '').includes(w));
+    const searchExpr = () => (!cfg.search || !words().length ? true : ['all', ...words().map((w) => ['in', w, ['get', '_q']])]);
+    const showOk = (p) => (showMode === 'all' || (showMode === 'completed') === isDone(p)) && dateOk(p) && searchOk(p);
+    const showFilter = () => ['all', showMode === 'all' ? true : showMode === 'completed' ? doneExpr : ['!', doneExpr], dateExpr(), searchExpr()];
     // Maps with an aerial background in uMap open on the Town's 2025 photos (one consistent look across Stratford).
     // A map can pick its own starting background in maps.json ("background": "dark").
     const startBase = bases[cfg.background] ? cfg.background : /World_Imagery|aerial|satellite/i.test(`${data.basemap?.url} ${data.basemap?.name}`) || !data.basemap ? 'town2025' : 'streets';
@@ -229,7 +254,11 @@
         const points = l.features.filter((f) => f.geometry.type === 'Point');
         if (!points.length) continue;
         if (!l.pins) {
-          add(l, { id: `${l.key}-point`, type: 'circle', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': style('color', l.color), 'circle-radius': widthAt(5), 'circle-stroke-color': '#fff', 'circle-stroke-width': widthAt(1.5) } }, true);
+          // `done.hollow` (Wildlife): features not ticked (e.g. unconfirmed) are rings in the layer colour, ticked ones solid dots.
+          const paint = done?.hollow
+            ? { 'circle-color': ['case', doneExpr, style('color', l.color), 'rgba(0,0,0,0)'], 'circle-radius': widthAt(5), 'circle-stroke-color': ['case', doneExpr, '#fff', style('color', l.color)], 'circle-stroke-width': widthAt(['case', doneExpr, 1.5, 2.2]) }
+            : { 'circle-color': style('color', l.color), 'circle-radius': widthAt(5), 'circle-stroke-color': '#fff', 'circle-stroke-width': widthAt(1.5) };
+          add(l, { id: `${l.key}-point`, type: 'circle', filter: ['==', ['geometry-type'], 'Point'], paint }, true);
           continue;
         }
         markers[l.key] = points.map((f) => {
@@ -295,6 +324,46 @@
         .setLngLat(at)
         .setHTML(`${p.name ? `<h3>${esc(p.name).replace(/\n/g, '<br>')}</h3>` : ''}${status}${rows ? `<table>${rows}</table>` : ''}${p.description ? richText(p.description) : ''}`)
         .addTo(map);
+      const box = popup.getElement();
+      // A row of extra photos (a paragraph of only images) shows as thumbnails; clicking one shows it in the big photo.
+      for (const row of box.querySelectorAll('.maplibregl-popup-content p')) {
+        if (row.querySelectorAll('img').length > 1 && row.textContent.trim() === '') row.classList.add('thumbs');
+      }
+      // iNaturalist photos sit in a fixed 4:3 box, so the popup's size is known before they load and never changes.
+      for (const img of box.querySelectorAll('img')) if (img.src.includes('inaturalist-open-data')) img.classList.add('photo-box');
+      if (box.querySelector('.photo-box')) box.classList.add('has-photo-box'); // full width from the start, so its size is final
+      // Placement, done once before the popup is seen so it never jumps: above the dot if it fits, else below,
+      // leaning left or right near the side edges. If it fits neither way, the map moves first (no animation).
+      const shown = popup;
+      const place = () => {
+        if (popup !== shown || !shown.isOpen()) return;
+        const map0 = map.getContainer(), h = box.offsetHeight + 24, w = box.offsetWidth;
+        let pt = map.project(at);
+        if (h > pt.y && h > map0.clientHeight - pt.y) { map.panBy([0, -Math.min(h - pt.y + 8, map0.clientHeight - pt.y - 40)], { duration: 0 }); pt = map.project(at); }
+        const vert = h <= pt.y ? 'bottom' : 'top';
+        const horiz = pt.x < w / 2 ? '-left' : pt.x > map0.clientWidth - w / 2 ? '-right' : '';
+        shown.options.anchor = vert + horiz;
+        shown.setLngLat(at);
+        box.style.visibility = '';
+      };
+      // Other photos (unknown shape) are waited for, up to 0.7 s, with the popup hidden, so it appears once in its final spot.
+      const pending = [...box.querySelectorAll('img:not(.photo-box)')].filter((img) => !img.complete);
+      if (!pending.length) place();
+      else {
+        box.style.visibility = 'hidden';
+        let left = pending.length;
+        const done1 = () => { if (--left === 0) place(); };
+        for (const img of pending) { img.loading = 'eager'; img.addEventListener('load', done1, { once: true }); img.addEventListener('error', done1, { once: true }); }
+        setTimeout(() => { if (box.style.visibility === 'hidden') place(); }, 700);
+      }
+      box.addEventListener('click', (e) => {
+        const thumb = e.target.closest('.thumbs img');
+        const big = box.querySelector('.maplibregl-popup-content p:not(.thumbs) img');
+        if (!thumb || !big) return;
+        const swap = big.src;
+        big.src = thumb.src.replace('/square.', '/medium.');
+        thumb.src = swap.replace('/medium.', '/square.');
+      });
     }
 
     // ---------- Map key and Info panels ----------
@@ -337,8 +406,11 @@
     // A tick-all box above the list on maps with more than one layer to tick.
     // On those maps the box is the section heading ("LAYERS"); one-layer maps keep a plain heading.
     const layersHead = !cfg.oneLayer && data.layers.length > 1 ? '<label class="all-row key-head"><input type="checkbox" data-layers-all aria-label="Select all layers"><span>Layers</span></label>' : '<legend>Layers</legend>';
-    const layersHtml = () => `<fieldset>${layersHead}${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span></label>`).reverse().join('')}</fieldset>
-${done ? `<fieldset class="filters"><button type="button" class="key-head clear-filters" data-clear>Clear filters</button><div class="seg-row"><span>${esc(done.field)}</span><div class="seg" role="group" aria-label="${esc(done.field)}">${[['all', 'All'], ['completed', 'Yes'], ['planned', 'No']].map(([k, label]) => `<button type="button" data-show="${k}" aria-pressed="${k === showMode}">${label}</button>`).join('')}</div></div></fieldset>` : ''}`;
+    const dateText = () => (datePreset === 'custom' ? (dateFrom ? `${dayLabel(dateFrom)} to ${dayLabel(dateTo)}` : 'Custom range') : datePreset === 'all' ? 'All' : PRESETS.find(([k]) => k === datePreset)[1]);
+    const dateMenu = () => `<div class="date-menu">${PRESETS.map(([k, label]) => `<label><input type="radio" name="date-preset" value="${k}"${k === datePreset ? ' checked' : ''}><span>${label}</span></label>`).join('')}${datePreset === 'custom' ? `<div class="date-custom"><label>From <input type="date" data-date-input="from" min="${firstDay()}" max="${lastDay()}" value="${dateFrom || ''}"></label><label>To <input type="date" data-date-input="to" min="${firstDay()}" max="${lastDay()}" value="${dateTo || ''}"></label></div>` : ''}</div>`;
+    const dateRow = () => (dates ? `<div class="seg-row"><span>${esc(dates.label || 'Date range')}</span><div class="seg"><button type="button" class="date-btn" data-date-btn aria-expanded="${dateMenuOpen}" aria-pressed="${datePreset !== 'all'}">${esc(dateText())} <span class="caret" aria-hidden="true">▾</span></button></div></div>${dateMenuOpen ? dateMenu() : ''}` : '');
+    const layersHtml = () => `<fieldset>${layersHead}${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span data-label="${i}">${esc(layerLabel(l))}</span></label>`).reverse().join('')}</fieldset>
+${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-head"><span class="key-head">Filters</span><button type="button" class="reset-btn" data-clear>Reset</button></div>${cfg.search ? `<input type="search" class="search-box" data-search placeholder="Search names, notes, people…" aria-label="Search" value="${esc(searchText)}">` : ''}${done ? `<div class="seg-row"><span>${esc(done.label || done.field)}</span><div class="seg" role="group" aria-label="${esc(done.field)}">${[['all', 'All'], ['completed', 'Yes'], ['planned', 'No']].map(([k, label]) => `<button type="button" data-show="${k}" aria-pressed="${k === showMode}">${label}</button>`).join('')}</div></div>` : ''}${dateRow()}</fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {
       const doneCount = c.features.filter((f) => isDone(f.properties)).length;
@@ -368,10 +440,30 @@ ${done ? `<fieldset class="filters"><button type="button" class="key-head clear-
       syncAll();
     }
     renderKey();
+    const updateCounts = () => { for (const el of keyPanel.querySelectorAll('[data-label]')) el.textContent = layerLabel(data.layers[+el.dataset.label]); };
+    let searchTimer;
+    keyPanel.addEventListener('input', (e) => {
+      if (e.target.dataset.search === undefined) return;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { searchText = e.target.value; popup?.remove(); refresh(); updateCounts(); }, 150); // short pause after typing
+    });
     keyPanel.addEventListener('change', (e) => {
       const t = e.target;
       if (t.dataset.i && cfg.oneLayer) data.layers.forEach((l, i) => setLayer(l, i === +t.dataset.i));
       else if (t.dataset.i) { setLayer(data.layers[+t.dataset.i], t.checked); syncAll(); }
+      if (t.name === 'date-preset') {
+        datePreset = t.value;
+        const today = new Date(), back = (days) => isoDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() - days));
+        [dateFrom, dateTo] = { all: [null, null], '12m': [back(365), isoDay(today)], '30d': [back(30), isoDay(today)], '7d': [back(7), isoDay(today)], custom: [dateFrom, dateTo] }[datePreset];
+        if (datePreset === 'custom' && !dateFrom) [dateFrom, dateTo] = [firstDay(), lastDay()];
+        dateMenuOpen = datePreset === 'custom'; // a preset is one click; custom stays open for the From/To boxes
+        refresh(); renderKey();
+      }
+      if (t.dataset.dateInput && t.value) {
+        if (t.dataset.dateInput === 'from') dateFrom = t.value; else dateTo = t.value;
+        if (dateFrom > dateTo) [dateFrom, dateTo] = [dateTo, dateFrom];
+        refresh(); renderKey();
+      }
       if (t.dataset.layersAll !== undefined) {
         for (const l of data.layers) l.show = t.checked;
         for (const box of keyPanel.querySelectorAll('[data-i]')) box.checked = t.checked;
@@ -385,10 +477,11 @@ ${done ? `<fieldset class="filters"><button type="button" class="key-head clear-
       }
     });
     keyPanel.addEventListener('click', (e) => {
+      if (e.target.closest('[data-date-btn]')) { dateMenuOpen = !dateMenuOpen; renderKey(); }
       const showBtn = e.target.closest('[data-show]');
       if (showBtn) { setShow(showBtn.dataset.show); renderKey(); } // layer counts follow the Yes/No choice
-      // Clear filters: every layer on, All.
-      if (e.target.closest('[data-clear]')) { for (const l of data.layers) l.show = true; setShow('all'); renderKey(); }
+      // Reset (beside the FILTERS heading): every layer on, All, all dates, no search.
+      if (e.target.closest('[data-clear]')) { for (const l of data.layers) l.show = true; dateFrom = dateTo = null; datePreset = 'all'; dateMenuOpen = false; searchText = ''; setShow('all'); renderKey(); }
       const modeBtn = e.target.closest('[data-mode]');
       if (modeBtn && modeBtn.dataset.mode !== mode) { mode = modeBtn.dataset.mode; resetView(); renderKey(); }
       const zoomBtn = e.target.closest('[data-zoom]');
@@ -403,6 +496,20 @@ ${done ? `<fieldset class="filters"><button type="button" class="key-head clear-
     // The map's description from uMap (links allowed), or the card text if uMap has none.
     document.getElementById('info-panel').innerHTML = `${richText(data.description || cfg.description)}${updated ?`<p class="updated">Updated ${updated}</p>` : ''}`;
 
+    // Leaderboard (`leaderboard` in maps.json, e.g. Wildlife's top contributors): the 10 people with the most features,
+    // counted from a hidden field (`_by`), all time and every layer, whatever the filters show.
+    const lb = cfg.leaderboard;
+    const lbPanel = document.getElementById('leaders-panel');
+    if (lb && lbPanel) {
+      const tally = new Map();
+      for (const l of data.layers) for (const f of l.features) { const who = f.properties[lb.field]; if (who) tally.set(who, (tally.get(who) || 0) + 1); }
+      const top = [...tally].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 10);
+      const most = top.length ? top[0][1] : 1;
+      const total = [...tally.values()].reduce((a, b) => a + b, 0);
+      lbPanel.innerHTML = `<div class="lb-head"><span class="key-head">${esc(lb.title || 'Leaderboard')}</span><span class="lb-sub">All time</span></div>
+<ol class="lb">${top.map(([who, n], i) => `<li class="lb-row${i < 3 ? ` lb-${i + 1}` : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-who">${lb.link ? link(lb.link + encodeURIComponent(who), esc(who)) : esc(who)}<span class="lb-bar" style="--w:${Math.max(4, Math.round((100 * n) / most))}%"></span></span><span class="lb-n">${n.toLocaleString('en-CA')}</span></li>`).join('')}</ol>
+<p class="lb-foot">${tally.size.toLocaleString('en-CA')} people have shared ${total.toLocaleString('en-CA')} ${esc(lb.unit || 'items')} on this map. Thank you!</p>`;
+    }
     // Each button opens and closes its own panel; opening one closes the other.
     const buttons = [...document.querySelectorAll('.map-buttons button')];
     const show = (btn) => {

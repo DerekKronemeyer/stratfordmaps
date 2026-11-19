@@ -19,6 +19,7 @@ const mapHref = (m) => (m.source === 'external' ? m.url : `/${m.slug}`);
 const icons = {
   facebook: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>',
   legend: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="4.5" width="4" height="4" rx="1" fill="currentColor"/><rect x="3" y="10" width="4" height="4" rx="1" fill="currentColor"/><rect x="3" y="15.5" width="4" height="4" rx="1" fill="currentColor"/><path d="M10 6.5h11M10 12h11M10 17.5h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.6 4M17 6h2.5a2.5 2.5 0 0 1-2.6 4M12 14v4M8 20.5h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   info: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.5v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.3" r="1.4" fill="currentColor"/></svg>',
   externalArrow: '<span aria-hidden="true">&#8599;</span>',
 };
@@ -32,6 +33,7 @@ const head = ({ title, description, path, image, extraHead = '' }) => `<!doctype
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="darkreader-lock">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
 <meta property="og:title" content="${esc(title)}">
@@ -191,11 +193,13 @@ const mapPage = (m) => `${head({
   <div class="map-buttons">
     <button type="button" id="map-key" aria-label="Map key" title="Map key" aria-controls="key-panel" aria-expanded="false">${icons.legend}<span>Map key</span></button>
     <button type="button" id="map-info" aria-label="Info" title="Info" aria-controls="info-panel" aria-expanded="false">${icons.info}<span>Info</span></button>
+    ${m.leaderboard ? `<button type="button" id="map-leaders" aria-label="Leaderboard" title="Leaderboard" aria-controls="leaders-panel" aria-expanded="false">${icons.trophy}<span>Leaderboard</span></button>` : ''}
   </div>
   <div id="key-panel" class="map-panel" hidden></div>
   <div id="info-panel" class="map-panel map-panel--info" hidden></div>
+  ${m.leaderboard ? '<div id="leaders-panel" class="map-panel map-panel--leaders" hidden></div>' : ''}
 </div>
-<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, done: m.done || null, components: m.components || null })};</script>
+<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null })};</script>
 <script src="/static/vendor/maplibre-gl/maplibre-gl.js"></script>
 <script src="/static/mapgl.js"></script>
 </body>

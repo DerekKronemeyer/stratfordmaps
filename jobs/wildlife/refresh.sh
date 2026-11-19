@@ -13,6 +13,6 @@ n=$(grep -c '^{' "$ROWS")
 if [ "$n" -lt 3000 ]; then echo "wildlife: only $n sightings from the hub (expected thousands), uMap left as is"; rm -f "$ROWS"; exit 0; fi
 sum=$(sha256sum "$ROWS" | cut -d' ' -f1)
 if [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$sum" ]; then echo "wildlife: no new sightings"; rm -f "$ROWS"; exit 0; fi
-docker exec -i umap umap shell < "$HERE/umap_update.py" && echo "$sum" > "$STATE" && echo "wildlife: uMap updated with $n sightings"
+cat "$HERE/popups.py" "$HERE/umap_update.py" | docker exec -i umap umap shell && echo "$sum" > "$STATE" && echo "wildlife: uMap updated with $n sightings"
 rm -f "$ROWS"
 exit 0

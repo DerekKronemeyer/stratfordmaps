@@ -150,7 +150,10 @@
    "source": "umap",
    "umap": "wildlife_18",
    "skipLayers": ["Birds (eBird)"],
-   "done": { "field": "Confirmed" },
+   "done": { "field": "Confirmed", "label": "Confirmed sightings", "hollow": true },
+   "dates": { "field": "_date", "label": "Date range" },
+   "search": true,
+   "leaderboard": { "field": "_by", "title": "Top contributors", "unit": "sightings", "link": "https://www.inaturalist.org/people/" },
    "thumb": "/static/thumbs/wildlife.jpg"
   },
   {
