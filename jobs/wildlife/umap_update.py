@@ -10,10 +10,9 @@ from umap.models import DataLayer
 MAP_ID = 18
 ROWS = '/srv/umap/uploads/import/wildlife_rows.jsonl'
 # iNaturalist's iconic taxon -> Wildlife layer name in uMap.
-LAYER = {'Aves': 'Birds', 'Plantae': 'Plants', 'Insecta': 'Insects', 'Fungi': 'Mushrooms and fungi', 'Mammalia': 'Mammals',
-         'Amphibia': 'Frogs, salamanders and snakes', 'Reptilia': 'Frogs, salamanders and snakes', 'Mollusca': 'Snails, slugs and shellfish',
-         'Arachnida': 'Spiders and ticks'}
-OTHER = 'Other animals and life'
+LAYER = {'Aves': 'Birds', 'Mammalia': 'Mammals', 'Insecta': 'Bugs and spiders', 'Arachnida': 'Bugs and spiders',
+         'Plantae': 'Plants and seaweed', 'Chromista': 'Plants and seaweed', 'Fungi': 'Mushrooms and fungi', 'Protozoa': 'Mushrooms and fungi'}
+OTHER = 'Other animals'  # frogs, snakes, turtles, snails, shellfish, fish, worms, crabs, unidentified
 LIC = {'cc0': 'CC0', 'cc-by': 'CC BY', 'cc-by-nc': 'CC BY-NC', 'cc-by-sa': 'CC BY-SA', 'cc-by-nd': 'CC BY-ND', 'cc-by-nc-sa': 'CC BY-NC-SA', 'cc-by-nc-nd': 'CC BY-NC-ND'}
 
 feats = defaultdict(list)
