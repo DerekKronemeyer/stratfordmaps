@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { createHash } from 'node:crypto';
+import { loadPalettes, splitLayer } from './split-layers.mjs';
 
 try { process.loadEnvFile(); } catch { /* no .env file: UMAP_URL may be set in the environment instead */ }
 const UMAP_URL = process.env.UMAP_URL?.replace(/\/$/, '');
@@ -69,6 +70,7 @@ const flattenFeature = (f) => {
   return { type: 'Feature', properties: props, geometry: { type: f.geometry.type, coordinates: round(f.geometry.coordinates) } };
 };
 
+let palettes; // uMap's colour palettes, loaded when a map needs them (`split`)
 for (const m of targets) {
   const id = m.umap.match(/_(\d+)$/)[1]; // "walking_2" → 2
   const map = (await getJson(`${UMAP_URL}/en/map/${id}/geojson/`)).properties;
@@ -83,6 +85,15 @@ for (const m of targets) {
     if ((m.skipLayers || []).includes(dl.properties?.name ?? dl.name)) continue;
     const fc = await getJson(`${UMAP_URL}/en/datalayer/${id}/${dl.id}/`);
     const o = { ...(dl.properties || {}), ...(fc._umap_options || {}) };
+    // `split` (Housing Density): this one uMap layer becomes several site layers by a number field.
+    if (m.split && o.name === m.split.layer) {
+      const whole = { name: o.name, color: o.color || 'DarkBlue', weight: o.weight ?? 3, opacity: o.opacity ?? map.opacity ?? 1, fillColor: o.fillColor || null,
+        fillOpacity: o.fillOpacity ?? 0.3, iconClass: o.iconClass || null, iconUrl: o.iconUrl || null, show: o.displayOnLoad !== false, showLabel: !!o.showLabel,
+        fields: (o.fields || []).map((f) => f.key), features: fc.features.map(flattenFeature) };
+      palettes ??= await loadPalettes(UMAP_URL, download);
+      for (const part of splitLayer(whole, o.choropleth, palettes, m.split, slugify)) { usedKeys.add(part.key); layers.push(part); }
+      continue;
+    }
     let key = keyFor[dl.id] || slugify(o.name || 'layer');
     for (let i = 2; usedKeys.has(key); i++) key = `${slugify(o.name || 'layer')}-${i}`;
     usedKeys.add(key);
