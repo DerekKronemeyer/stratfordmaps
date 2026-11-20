@@ -2,6 +2,7 @@
 # otherwise replaces only its features, keeping the layer's name, style and settings as Derek left them.
 # Only layers whose rows file is present are touched (refresh.sh removes the ones that didn't change).
 import os
+import uuid
 from django.core.files.base import ContentFile
 from umap.models import DataLayer, Map
 
@@ -17,9 +18,11 @@ for spec in LAYERS:
     if dl is None:
         settings = {'name': spec['name'], **spec['settings']}
         # New layers go at the END of the site's layer list (Derek), i.e. uMap rank 0, below the existing layers.
-        for other in DataLayer.objects.filter(map=m).exclude(share_status=99):
-            DataLayer.objects.filter(pk=other.pk).update(rank=other.rank + 1)
-        dl = DataLayer(map=m, name=spec['name'], settings=settings, rank=0)
+        others = DataLayer.objects.filter(map=m).exclude(share_status=99)
+        if any(o.rank <= 0 for o in others):  # make room at rank 0
+            for other in others:
+                DataLayer.objects.filter(pk=other.pk).update(rank=other.rank + 1)
+        dl = DataLayer(map=m, name=spec['name'], settings=settings, rank=0, uuid=uuid.uuid4())
         gj = {'type': 'FeatureCollection', '_umap_options': settings, 'features': feats}
         print(f"{spec['name']}: new layer on map {m.pk}")
     else:
