@@ -325,13 +325,20 @@
         .setHTML(`${p.name ? `<h3>${esc(p.name).replace(/\n/g, '<br>')}</h3>` : ''}${status}${rows ? `<table>${rows}</table>` : ''}${p.description ? richText(p.description) : ''}`)
         .addTo(map);
       const box = popup.getElement();
-      // A row of extra photos (a paragraph of only images) shows as thumbnails; clicking one shows it in the big photo.
+      // A row of extra photos (a paragraph of only images) shows as thumbnails. When there is one, the big photo above it
+      // joins the row too, so every photo is a same-size thumbnail (clicking any opens it full screen).
+      const photoOnly = (p) => p && p.tagName === 'P' && p.querySelector('img') && p.textContent.trim() === '';
       for (const row of box.querySelectorAll('.maplibregl-popup-content p')) {
-        if (row.querySelectorAll('img').length > 1 && row.textContent.trim() === '') row.classList.add('thumbs');
+        if (row.querySelectorAll('img').length < 2 || !photoOnly(row)) continue;
+        row.classList.add('thumbs');
+        const prev = row.previousElementSibling;
+        if (photoOnly(prev) && prev.querySelectorAll('img').length === 1) { row.prepend(prev.querySelector('img')); prev.remove(); }
+        for (const img of row.querySelectorAll('img')) img.src = img.src.replace(/\/(square|medium)\./, '/small.'); // sharp enough at thumbnail size
       }
-      // iNaturalist photos sit in a fixed 4:3 box, so the popup's size is known before they load and never changes.
-      for (const img of box.querySelectorAll('img')) if (img.src.includes('inaturalist-open-data')) img.classList.add('photo-box');
-      if (box.querySelector('.photo-box')) box.classList.add('has-photo-box'); // full width from the start, so its size is final
+      // iNaturalist photos sit in a fixed box (4:3 for one photo, square thumbnails), so the popup's size is known before
+      // they load and never changes.
+      for (const img of box.querySelectorAll('img')) if (img.src.includes('inaturalist-open-data') && !img.closest('.thumbs')) img.classList.add('photo-box');
+      if (box.querySelector('.photo-box, .thumbs')) box.classList.add('has-photo-box'); // full width from the start, so its size is final
       // Placement, done once before the popup is seen so it never jumps: above the dot if it fits, else below,
       // leaning left or right near the side edges. If it fits neither way, the map moves first (no animation).
       const shown = popup;
@@ -357,13 +364,59 @@
         setTimeout(() => { if (box.style.visibility === 'hidden') place(); }, 700);
       }
       box.addEventListener('click', (e) => {
-        const thumb = e.target.closest('.thumbs img');
-        const big = box.querySelector('.maplibregl-popup-content p:not(.thumbs) img');
-        if (!thumb || !big) return;
-        const swap = big.src;
-        big.src = thumb.src.replace('/square.', '/medium.');
-        thumb.src = swap.replace('/medium.', '/square.');
+        if (e.target.matches('.maplibregl-popup-content img')) openViewer(e.target);
       });
+    }
+
+    // ---------- Photo viewer ----------
+    // Clicking a popup photo shows it full screen (iNaturalist's large size). The scroll wheel zooms toward the
+    // pointer, dragging moves a zoomed photo, and a click (not a drag) or Escape closes it.
+    let viewer;
+    function openViewer(img) {
+      if (!viewer) {
+        viewer = document.createElement('div');
+        viewer.className = 'photo-viewer';
+        viewer.innerHTML = '<img alt="">';
+        document.body.append(viewer);
+        const pic = viewer.firstChild;
+        let scale = 1, x = 0, y = 0, drag = null, moved = false;
+        const apply = () => {
+          const mx = ((scale - 1) * innerWidth) / 2, my = ((scale - 1) * innerHeight) / 2; // never past the photo's edges
+          x = Math.max(-mx, Math.min(mx, x)); y = Math.max(-my, Math.min(my, y));
+          pic.style.transform = `translate(${x}px, ${y}px) scale(${scale})`; viewer.classList.toggle('zoomed', scale > 1); };
+        viewer.reset = () => { scale = 1; x = y = 0; apply(); };
+        viewer.close = () => { viewer.hidden = true; pic.removeAttribute('src'); };
+        viewer.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          const next = Math.min(8, Math.max(1, scale * Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0015))));
+          // Keep the point under the pointer still while zooming (the photo scales about the screen centre).
+          const cx = e.clientX - innerWidth / 2, cy = e.clientY - innerHeight / 2, k = next / scale;
+          x = cx - (cx - x) * k; y = cy - (cy - y) * k; scale = next;
+          if (scale === 1) x = y = 0;
+          apply();
+        }, { passive: false });
+        viewer.addEventListener('pointerdown', (e) => { drag = { px: e.clientX, py: e.clientY, x, y }; moved = false; viewer.setPointerCapture(e.pointerId); });
+        viewer.addEventListener('pointermove', (e) => {
+          if (!drag) return;
+          const dx = e.clientX - drag.px, dy = e.clientY - drag.py;
+          if (Math.abs(dx) + Math.abs(dy) > 5) moved = true;
+          if (moved && scale > 1) { x = drag.x + dx; y = drag.y + dy; apply(); }
+        });
+        viewer.addEventListener('pointerup', () => { if (drag && !moved) viewer.close(); drag = null; });
+        viewer.addEventListener('pointercancel', () => { drag = null; });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !viewer.hidden) viewer.close(); });
+      }
+      const pic = viewer.firstChild;
+      pic.src = img.src; // shows at once, then swaps to the sharper size when it arrives
+      if (img.src.includes('inaturalist-open-data')) {
+        const large = img.src.replace(/\/(square|small|medium)\./, '/large.');
+        const pre = new Image();
+        pre.onload = () => { if (!viewer.hidden && pic.src === img.src) pic.src = large; };
+        pre.src = large;
+      }
+      pic.alt = img.alt;
+      viewer.reset();
+      viewer.hidden = false;
     }
 
     // ---------- Map key and Info panels ----------

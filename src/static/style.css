@@ -193,6 +193,13 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .pin[style*="--pin-ring"] .pin-head { border-width: 3px; }
 .maplibregl-popup-content img { display: block; width: 100%; height: auto; border-radius: 6px; margin-top: 4px; }
 .maplibregl-popup.has-photo-box { width: 340px; }
+.maplibregl-popup-content img { cursor: zoom-in; }
+/* Full-screen photo viewer: wheel zooms, drag moves, click closes. */
+.photo-viewer { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: rgba(0, 0, 0, .7); cursor: zoom-out; touch-action: none; overflow: hidden; }
+.photo-viewer[hidden] { display: none; }
+.photo-viewer.zoomed { cursor: grab; }
+.photo-viewer.zoomed:active { cursor: grabbing; }
+.photo-viewer img { width: 100vw; height: 100vh; object-fit: contain; user-select: none; -webkit-user-drag: none; pointer-events: none; transform-origin: center; }
 /* Leaderboard panel: a game-style top 10 (gold, silver, bronze ranks, bars scaled to the leader). */
 .map-panel--leaders .lb-head { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px; }
 .map-panel--leaders .lb-sub { font-size: 0.8rem; color: var(--muted); }
@@ -215,8 +222,8 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .map-panel .lb-n { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 0.95rem; }
 .map-panel .lb-foot { margin: 10px 0 0; font-size: 0.85rem; color: var(--muted); }
 .maplibregl-popup-content img.photo-box { aspect-ratio: 4 / 3; object-fit: contain; background: #111; }
-.maplibregl-popup-content .thumbs { display: flex; gap: 6px; }
-.maplibregl-popup-content .thumbs img { width: 56px; height: 56px; object-fit: cover; margin: 0; cursor: pointer; }
+.maplibregl-popup-content .thumbs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+.maplibregl-popup-content .thumbs img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; margin: 0; background: #111; }
 .maplibregl-popup-content audio { display: block; width: 100%; height: 32px; margin-top: 4px; }
 .maplibregl-popup-content table { border-collapse: collapse; margin: 0 0 8px; font-size: 0.85rem; }
 .maplibregl-popup-content th { text-align: left; font-weight: 600; color: var(--muted); padding: 2px 12px 2px 0; vertical-align: top; white-space: nowrap; }
