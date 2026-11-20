@@ -140,7 +140,8 @@
    "source": "umap",
    "umap": "watershed_16",
    "thumb": "/static/thumbs/watershed.jpg",
-   "background": "dark"
+   "background": "dark",
+   "flow": { "res": ["2m"] }
   },
   {
    "slug": "wildlife",

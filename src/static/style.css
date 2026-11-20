@@ -236,6 +236,11 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--bg); }
 
 .bg-ctrl { position: relative; }
+/* Trace Water (Watershed): a mode button beside Info, and its note bottom left. */
+.map-buttons button[aria-pressed="true"] { background: var(--surface-hover); color: #5fd8ff; border-color: #5fd8ff; }
+.map-panel.flow-note { top: auto; bottom: 34px; width: 340px; min-width: 0; }
+.flow-note .flow-msg { margin: 0 0 10px; font-size: 0.95rem; line-height: 1.45; }
+.flow-note .flow-caveat { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
 .bg-ctrl .bg-btn { display: grid; place-items: center; color: var(--text); }
 .bg-menu { position: absolute; top: 0; right: calc(100% + 8px); display: flex; flex-direction: column; min-width: 120px; padding: 4px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
 .bg-menu[hidden] { display: none; }

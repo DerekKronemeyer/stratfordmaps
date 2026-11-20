@@ -280,11 +280,14 @@
       }
 
       const hitAt = (pt) => map.queryRenderedFeatures(pt, { layers: clickable }).find((x) => hasContent(layerOf[x.layer.id], x.properties));
+      // Trace water (`flow` in maps.json, flow.js): while it is on, clicks trace instead of opening popups.
+      const flow = cfg.flow && window.FlowTool ? window.FlowTool(map, cfg.flow) : null;
       map.on('click', (e) => {
+        if (flow?.active) return;
         const f = hitAt(e.point);
         if (f) showPopup(layerOf[f.layer.id], f, e.lngLat);
       });
-      map.on('mousemove', (e) => { map.getCanvas().style.cursor = hitAt(e.point) ? 'pointer' : ''; });
+      map.on('mousemove', (e) => { if (!flow?.active) map.getCanvas().style.cursor = hitAt(e.point) ? 'pointer' : ''; });
 
       // A shared link to some network components: frame them.
       if (linkComps.length) zoomTo(linkComps.flatMap((k) => comps.get(k).features), false);
@@ -563,8 +566,8 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
 <ol class="lb">${top.map(([who, n], i) => `<li class="lb-row${i < 3 ? ` lb-${i + 1}` : ''}"><span class="lb-rank">${i + 1}</span><span class="lb-who">${lb.link ? link(lb.link + encodeURIComponent(who), esc(who)) : esc(who)}<span class="lb-bar" style="--w:${Math.max(4, Math.round((100 * n) / most))}%"></span></span><span class="lb-n">${n.toLocaleString('en-CA')}</span></li>`).join('')}</ol>
 <p class="lb-foot">${tally.size.toLocaleString('en-CA')} people have shared ${total.toLocaleString('en-CA')} ${esc(lb.unit || 'items')} on this map. Thank you!</p>`;
     }
-    // Each button opens and closes its own panel; opening one closes the other.
-    const buttons = [...document.querySelectorAll('.map-buttons button')];
+    // Each button opens and closes its own panel; opening one closes the other. (Trace Water is a mode, not a panel.)
+    const buttons = [...document.querySelectorAll('.map-buttons button[aria-controls]')];
     const show = (btn) => {
       for (const b of buttons) {
         const open = b === btn;
