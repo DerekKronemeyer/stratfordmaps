@@ -3,6 +3,7 @@
 # layer's settings (used when the layer is first created; later runs keep Derek's edits to the settings).
 # Runs inside the uMap container:  cat layers.py umap_update.py | docker exec -i umap umap shell
 import json
+import math
 
 IMPORT = '/srv/umap/uploads/import'
 
@@ -21,13 +22,43 @@ def road_name(s):
     return ' '.join(words.get(w, w.capitalize()) for w in (s or '').split())
 
 
+# Streetlight kinds, from the Town's fixture codes (Claude's reading: the "L" prefix = decorative lantern, since
+# "Lantern HPS" and "LHPS" both appear and most have no arm). For the glow: whole-fixture lumens per watt, the share
+# of light thrown downward, and an assumed mounting height (utility-pole heads ~9 m, post-top lanterns ~4.5 m).
+KINDS = {
+    'LED': ('Streetlight', 'LED', 110, 1.0, 9),
+    'HPS': ('Streetlight', 'sodium (older, orange light)', 65, 1.0, 9),
+    'LLED': ('Decorative lantern', 'LED', 80, 0.7, 4.5),
+    'Lantern HPS': ('Decorative lantern', 'sodium (older, orange light)', 55, 0.7, 4.5),
+    'LHPS': ('Decorative lantern', 'sodium (older, orange light)', 55, 0.7, 4.5),
+    'LMH': ('Decorative lantern', 'metal halide (older, white light)', 45, 0.7, 4.5),
+}
+EDGE_LUX = 1  # the glow reaches out to where the ground gets about 1 lux (dim, but enough to see by)
+
+
+def reach(lumens, down, h):
+    """Metres from the pole to where the ground light falls to EDGE_LUX, treating the light as a point source
+    spreading its downward light evenly over the lower half-sphere: E(r) = I*h / (h^2 + r^2)^1.5."""
+    i = down * lumens / (2 * math.pi)
+    return math.sqrt(max(0.0, (i * h / EDGE_LUX) ** (2 / 3) - h * h))
+
+
 def streetlights():
     out = []
     for r in rows('streetlights.jsonl'):
-        lamp = ' '.join(x for x in [f"{r['wattage']} W" if r.get('wattage') else '', r.get('fixture') or ''] if x)
-        props = {'id': f"light-{r['id']}", 'name': 'Streetlight'}
-        if lamp:
-            props['Lamp'] = lamp
+        code = (r.get('fixture') or '').strip()
+        name, light, eff, down, h = KINDS.get(code, ('Streetlight', code or 'unknown', 90, 1.0, 9))
+        props = {'id': f"light-{r['id']}", 'name': name, 'Light': light}
+        watts = float(r['wattage']) if r.get('wattage') else None
+        if watts:
+            lumens = watts * eff
+            radius = reach(lumens, down, h)
+            props['Power'] = f'{watts:g} W'
+            props['Brightness (estimate)'] = f'about {round(lumens, -2):,.0f} lumens'
+            props['Lights up (estimate)'] = f'about {radius:.0f} m around'
+            props['_glow'] = round(radius, 1)  # metres; the site draws a soft glow this size
+            if 'sodium' in light:
+                props['_glowColor'] = '#FF9A3C'  # sodium lights really are orange
         out.append({'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [r['lng'], r['lat']]}, 'properties': props})
     return out
 

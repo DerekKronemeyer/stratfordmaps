@@ -12,7 +12,7 @@ for q in streetlights traffic; do
   if ! docker exec -i maps-db psql -U datahub -d datahub -At -v ON_ERROR_STOP=1 < "$HERE/$q.sql" > "$rows"; then
     echo "hub_layers: $q query failed, left as is"; rm -f "$rows"; continue
   fi
-  sum=$(sha256sum "$rows" | cut -d' ' -f1)
+  sum=$(cat "$rows" "$HERE/layers.py" | sha256sum | cut -d' ' -f1)   # rows + how they are drawn
   if [ -f "$STATE/$q.sha256" ] && [ "$(cat "$STATE/$q.sha256")" = "$sum" ]; then
     echo "hub_layers: $q unchanged"; rm -f "$rows"; continue
   fi

@@ -253,11 +253,19 @@
       for (const l of data.layers) {
         const points = l.features.filter((f) => f.geometry.type === 'Point');
         if (!points.length) continue;
+        // Streetlights: a soft yellow glow (`_glowColor` if set, e.g. orange for sodium) under each dot, sized to how far its light reaches (`_glow`, metres on the
+        // ground, an estimate made in jobs/hub_layers/layers.py). Metres become pixels at each zoom.
+        if (points.some((f) => f.properties._glow)) {
+          const mpp = (z) => (40075016.686 * Math.cos(((data.center?.[1] ?? 46.2) * Math.PI) / 180)) / (512 * 2 ** z);
+          const glowRadius = ['interpolate', ['exponential', 2], ['zoom'], 10, ['/', ['get', '_glow'], mpp(10)], 22, ['/', ['get', '_glow'], mpp(22)]];
+          add(l, { id: `${l.key}-glow`, type: 'circle', filter: ['has', '_glow'], paint: { 'circle-color': ['coalesce', ['get', '_glowColor'], '#FFE14D'], 'circle-radius': glowRadius, 'circle-blur': 0.75, 'circle-opacity': 0.6, 'circle-pitch-alignment': 'map' } });
+        }
         if (!l.pins) {
           // `done.hollow` (Wildlife): features not ticked (e.g. unconfirmed) are rings in the layer colour, ticked ones solid dots.
           const paint = done?.hollow
             ? { 'circle-color': ['case', doneExpr, style('color', l.color), 'rgba(0,0,0,0)'], 'circle-radius': widthAt(5), 'circle-stroke-color': ['case', doneExpr, '#fff', style('color', l.color)], 'circle-stroke-width': widthAt(['case', doneExpr, 1.5, 2.2]) }
             : { 'circle-color': style('color', l.color), 'circle-radius': widthAt(5), 'circle-stroke-color': '#fff', 'circle-stroke-width': widthAt(1.5) };
+          if (points.some((f) => f.properties._glow)) { paint['circle-radius'] = widthAt(2.5); paint['circle-stroke-width'] = widthAt(0.8); } // the glow shows the light, the dot just marks the pole
           add(l, { id: `${l.key}-point`, type: 'circle', filter: ['==', ['geometry-type'], 'Point'], paint }, true);
           continue;
         }
