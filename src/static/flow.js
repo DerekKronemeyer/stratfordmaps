@@ -1,5 +1,5 @@
 // Trace water (Watershed map): click a spot to see where rain falling there runs downhill.
-// Flow directions come from a 1 m / 2 m ground model (NRCan HRDEM 2020, streams burned in), cut into 512-cell tiles
+// Flow directions come from a 2 m ground model (NRCan HRDEM 2020, streams burned in), cut into 512-cell tiles
 // (flow/<res>/d/<row>_<col>.bin, gzip, 1 byte per cell) that load as a trace reaches them. See sandbox flow/04_tiles.py.
 // mapgl.js calls window.FlowTool(map, cfg.flow) after the map loads; while `active`, clicks trace instead of opening popups.
 window.FlowTool = function (map, opt) {
@@ -164,7 +164,6 @@ ${resList.length > 1 ? `<div class="seg-row"><span>Detail</span><div class="seg"
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && tool.active) setActive(false); });
   map.on('click', (e) => { if (tool.active) trace(e.lngLat); });
   map.on('mousemove', () => { if (tool.active) map.getCanvas().style.cursor = 'crosshair'; });
-  const tool = { active: false, trace: (lng, lat) => { if (!tool.active) setActive(true); return trace({ lng, lat }); } };
-  window.FlowTool.instance = tool; // for testing from the console
+  const tool = { active: false };
   return tool;
 };
