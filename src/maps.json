@@ -173,7 +173,9 @@
    "description": "Every residential building in town, colour-coded by number of units.",
    "source": "umap",
    "umap": "housing-density_12",
-   "thumb": "/static/thumbs/housing-density.jpg"
+   "thumb": "/static/thumbs/housing-density.jpg",
+   "areaDots": true,
+   "heatmap": { "weights": { "Singles": 1, "Doubles/Secondary Suites": 2, "Triples & Quads": 3.5, "5-6 Units": 5.5, "7-12 Units": 10, "13+ Units": 18 } }
   },
   {
    "slug": "wards",

@@ -65,7 +65,46 @@
   // uMap "icons" here are emoji (up to 4 characters, since some emoji are several); image URLs are ignored.
   const emojiOf = (icon) => (icon && [...icon].length <= 4 && !/^https?:|\//.test(icon) ? icon : '');
 
+  // Polygon centre (area-weighted, outer ring), for drawing a building outline as a dot.
+  const centroid = (ring) => {
+    let a = 0, x = 0, y = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const k = ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+      a += k; x += (ring[j][0] + ring[i][0]) * k; y += (ring[j][1] + ring[i][1]) * k;
+    }
+    return a ? [x / (3 * a), y / (3 * a)] : ring[0];
+  };
+  const inRing = ([px, py], ring) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  };
+  // Points about every 3 m inside a building outline (outer rings), for spreading its heat over the roof.
+  const fillPoints = (geom) => {
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+    const out = [];
+    for (const poly of polys) {
+      const ring = poly[0], xs = ring.map((c) => c[0]), ys = ring.map((c) => c[1]);
+      const dy = 3 / 111320, dx = dy / Math.cos((ys[0] * Math.PI) / 180);
+      for (let y = Math.min(...ys) + dy / 2; y < Math.max(...ys); y += dy)
+        for (let x = Math.min(...xs) + dx / 2; x < Math.max(...xs); x += dx) if (inRing([x, y], ring)) out.push([x, y]);
+      if (!out.length) out.push(centroid(ring));
+    }
+    return out;
+  };
+
   fetch(cfg.data).then((r) => r.json()).then((data) => {
+    // `areaDots` (Housing Density): each building is kept as its outline in uMap, but drawn as a dot at its centre.
+    // The outline is kept aside (f._outline) for the heatmap.
+    if (cfg.areaDots) for (const l of data.layers) for (const f of l.features) {
+      const g = f.geometry;
+      if (g.type !== 'Polygon' && g.type !== 'MultiPolygon') continue;
+      f._outline = g;
+      f.geometry = { type: 'Point', coordinates: centroid(g.type === 'Polygon' ? g.coordinates[0] : g.coordinates[0][0]) };
+    }
     // How the map looks when it first opens, so switching Map key modes can return to it.
     const defaultShow = data.layers.map((l, i) => (cfg.oneLayer ? i === Math.max(0, data.layers.findIndex((x) => x.show !== false)) : l.show !== false));
     const wanted = (params.get('layers') || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -104,6 +143,10 @@
     const compList = [...comps.values()].sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
     const linkComps = (params.get('components') || '').split(',').map((s) => s.trim().toLowerCase()).filter((k) => comps.has(k));
     let mode = linkComps.length ? 'components' : 'layers'; // which list the Map key shows
+    // Heatmap (`heatmap` in maps.json, Housing Density): a Dots | Heatmap switch at the top of the Map key. In heatmap
+    // view the dots hide and every ticked layer's points feed one heatmap, each point weighted by its number of
+    // homes (its editable `Units` in uMap, else its layer's typical size from `heatmap.weights`).
+    let view = 'dots';
     let picked = new Set(linkComps.length ? linkComps : comps.keys()); // components ticked in that list
     const boundsOf = (features) => features.flatMap((f) => allCoords(f.geometry.coordinates))
       .reduce(([[w, s], [e, n]], [x, y]) => [[Math.min(w, x), Math.min(s, y)], [Math.max(e, x), Math.max(n, y)]], [[180, 90], [-180, -90]]);
@@ -214,7 +257,11 @@
     function refresh() {
       for (const [id, filter] of Object.entries(baseFilter)) {
         map.setFilter(id, ['all', filter, extraFilter()]);
-        map.setLayoutProperty(id, 'visibility', layerVisible(layerOf[id]) ? 'visible' : 'none');
+        map.setLayoutProperty(id, 'visibility', layerVisible(layerOf[id]) && view === 'dots' ? 'visible' : 'none');
+      }
+      if (map.getLayer('heat')) {
+        map.setFilter('heat', ['in', ['get', '_lk'], ['literal', data.layers.filter((l) => l.show).map((l) => l.key)]]);
+        map.setLayoutProperty('heat', 'visibility', view === 'heat' ? 'visible' : 'none');
       }
       for (const l of data.layers) for (const { f, mk } of markers[l.key] || []) featureShown(l, f.properties) ? mk.addTo(map) : mk.remove();
     }
@@ -287,6 +334,25 @@
         });
       }
 
+      if (cfg.heatmap) {
+        const w = cfg.heatmap.weights || {};
+        // Each building's homes: its Units (else its layer's typical size), spread evenly over its outline if it has one.
+        const pts = data.layers.flatMap((l) => l.features.filter((f) => f.geometry.type === 'Point').flatMap((f) => {
+          const units = Number(f.properties.Units) || w[l.name] || 1;
+          const spots = f._outline ? fillPoints(f._outline) : [f.geometry.coordinates];
+          return spots.map((c) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: c }, properties: { _lk: l.key, _w: units / spots.length } }));
+        }));
+        map.addSource('heat-src', { type: 'geojson', data: { type: 'FeatureCollection', features: pts } });
+        map.addLayer({ id: 'heat', type: 'heatmap', source: 'heat-src', layout: { visibility: 'none' }, paint: {
+          'heatmap-weight': ['get', '_w'],
+          // Wide and soft zoomed out (neighbourhoods), tighter zoomed in so each building's outline shows through.
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 11, 4, 14, 18, 16, 30, 18, 55],
+          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 11, 0.12, 14, 0.15, 16, 0.3, 18, 0.6],
+          'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 0.1, 'rgba(43,131,186,0.55)', 0.3, '#abdda4', 0.5, '#ffffbf', 0.7, '#fdae61', 1, '#d7191c'],
+          'heatmap-opacity': 0.85,
+        } });
+        refresh();
+      }
       const hitAt = (pt) => map.queryRenderedFeatures(pt, { layers: clickable }).find((x) => hasContent(layerOf[x.layer.id], x.properties));
       // Trace water (`flow` in maps.json, flow.js): while it is on, clicks trace instead of opening popups.
       const flow = cfg.flow && window.FlowTool ? window.FlowTool(map, cfg.flow) : null;
@@ -498,7 +564,8 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
       all.indeterminate = picked.size > 0 && picked.size < comps.size;
     };
     function renderKey() {
-      const toggle = cfg.components ? `<div class="mode-toggle" role="group" aria-label="Map key view">${[['layers', 'Layers'], ['components', cfg.components.label]].map(([k, label]) => `<button type="button" data-mode="${k}" aria-pressed="${mode === k}">${esc(label)}</button>`).join('')}</div>` : '';
+      const toggle = cfg.components ? `<div class="mode-toggle" role="group" aria-label="Map key view">${[['layers', 'Layers'], ['components', cfg.components.label]].map(([k, label]) => `<button type="button" data-mode="${k}" aria-pressed="${mode === k}">${esc(label)}</button>`).join('')}</div>`
+        : cfg.heatmap ? `<div class="mode-toggle" role="group" aria-label="Map view">${[['dots', 'Dots'], ['heat', 'Heatmap']].map(([k, label]) => `<button type="button" data-view="${k}" aria-pressed="${view === k}">${label}</button>`).join('')}</div>` : '';
       keyPanel.classList.toggle('map-panel--wide', mode === 'components');
       keyPanel.innerHTML = `${toggle}${mode === 'components' ? compsHtml() : layersHtml()}`;
       syncAll();
@@ -546,6 +613,8 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
       if (showBtn) { setShow(showBtn.dataset.show); renderKey(); } // layer counts follow the Yes/No choice
       // Reset (beside the FILTERS heading): every layer on, All, all dates, no search.
       if (e.target.closest('[data-clear]')) { for (const l of data.layers) l.show = true; dateFrom = dateTo = null; datePreset = 'all'; dateMenuOpen = false; searchText = ''; setShow('all'); renderKey(); }
+      const viewBtn = e.target.closest('[data-view]');
+      if (viewBtn && viewBtn.dataset.view !== view) { view = viewBtn.dataset.view; popup?.remove(); refresh(); renderKey(); }
       const modeBtn = e.target.closest('[data-mode]');
       if (modeBtn && modeBtn.dataset.mode !== mode) { mode = modeBtn.dataset.mode; resetView(); renderKey(); }
       const zoomBtn = e.target.closest('[data-zoom]');
