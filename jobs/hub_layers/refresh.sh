@@ -1,5 +1,5 @@
 #!/bin/bash
-# Hub-fed uMap layers (Walking: Streetlights; Streets: Traffic Volumes), run on elsa by stratfordmaps-sync just
+# Hub-fed uMap layers (Walking: Streetlights; Streets: Traffic Volumes; Community Resources: EV chargers), run on elsa by stratfordmaps-sync just
 # before it fetches uMap and pushes the site. Each layer's SQL runs against the hub; uMap is only touched for
 # layers whose rows changed since last time, so the site only gets a commit when the data changed.
 set -uo pipefail
@@ -7,7 +7,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 IMPORT=/home/derek/umap/uploads/import          # /srv/umap/uploads/import inside the uMap container
 STATE=/home/derek/umap/publish
 changed=()
-for q in streetlights traffic; do
+for q in streetlights traffic ev; do
   rows="$IMPORT/$q.jsonl"
   if ! docker exec -i maps-db psql -U datahub -d datahub -At -v ON_ERROR_STOP=1 < "$HERE/$q.sql" > "$rows"; then
     echo "hub_layers: $q query failed, left as is"; rm -f "$rows"; continue
@@ -23,5 +23,5 @@ if [ ${#changed[@]} -gt 0 ]; then
     for c in "${changed[@]}"; do echo "${c#*:}" > "$STATE/${c%%:*}.sha256"; done
   fi
 fi
-rm -f "$IMPORT/streetlights.jsonl" "$IMPORT/traffic.jsonl"
+rm -f "$IMPORT/streetlights.jsonl" "$IMPORT/traffic.jsonl" "$IMPORT/ev.jsonl"
 exit 0

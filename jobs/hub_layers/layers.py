@@ -84,6 +84,78 @@ def traffic():
     return out
 
 
+# EV chargers: listings within MERGE_M of each other are one site (Stratford Town Hall is two ChargePoint listings).
+# PLACES names known sites by station id (listed names are often network codes like "STRATFORD EV STRATFORDTWNHLL");
+# any other site is named by its street address.
+MERGE_M = 25
+PLACES = {'232437': 'Town Hall', '232438': 'Town Hall', '232439': 'Emergency Services building', '464815': 'Provincial Credit Union',
+          '464821': 'Shepard Drive parking lot'}  # 464821 is listed at Town Hall's address but sits on the Town's lot at 17 Shepard Dr
+PLUGS = {'J1772': 'J1772 (fits most electric cars; Teslas use an adapter)', 'J1772COMBO': 'CCS fast charger',
+         'CHADEMO': 'CHAdeMO fast charger', 'TESLA': 'Tesla (NACS)', 'NEMA515': 'Wall outlet', 'NEMA520': 'Wall outlet',
+         'NEMA1450': 'Wall outlet (50 A)', 'J3271': 'Megawatt charger'}
+STREET = {'Dr': 'Drive', 'Rd': 'Road', 'Ave': 'Avenue', 'Av': 'Avenue', 'St': 'Street', 'Ln': 'Lane', 'Cres': 'Crescent', 'Ct': 'Court'}
+MONTHS = 'January February March April May June July August September October November December'.split()
+
+
+def nice_address(a):
+    return ' '.join(STREET.get(w, w) for w in (a or '').strip().split())
+
+
+def ev_chargers():
+    sites = []
+    for r in rows('ev.jsonl'):  # group listings into sites
+        for s in sites:
+            if math.hypot((s[0]['lng'] - r['lng']) * 77000, (s[0]['lat'] - r['lat']) * 111000) <= MERGE_M:
+                s.append(r)
+                break
+        else:
+            sites.append([r])
+    out = []
+    for site in sites:
+        n = lambda k: sum(int(r.get(k) or 0) for r in site)
+        kinds = sorted({c for r in site for c in (r.get('connectors') or [])}, key=lambda c: list(PLUGS).index(c) if c in PLUGS else 99)
+        nets = sorted({r.get('network') or '' for r in site} - {''})
+        name = next((PLACES[r['id']] for r in site if r['id'] in PLACES), None) or nice_address(site[0].get('address')) or 'EV charger'
+        total = n('dc') + n('l2') + n('l1')
+        props = {'id': f"ev-{site[0]['id']}", 'name': name, 'Plugs': str(total) if total else 'unknown'}
+        if kinds:
+            props['Plug type'] = ', '.join(PLUGS.get(k, k) for k in kinds)
+        # Speed: one entry per charging level present (Plugs is just the count), with the listed kW when known.
+        speeds = []
+        for key, level, label in (('dc', None, 'Fast (DC)'), ('l2', '2', 'Level 2'), ('l1', '1', 'Level 1')):
+            if not n(key):
+                continue
+            kw = sorted({c['power_kw'] for r in site for u in (r.get('units') or []) if (u.get('charging_level') in ('1', '2')) == (level is not None)
+                         and (level is None or u.get('charging_level') == level) for c in (u.get('connectors') or {}).values()
+                         if c.get('port_count') and c.get('power_kw')})
+            text = label + (', ' + ' / '.join(f'{k:g} kW' for k in kw) if kw else '')
+            if kw and level:
+                text += f' (about {round(max(kw) * 6, -1):.0f} km of driving per hour)'
+            speeds.append(text)
+        if speeds:
+            props['Speed'] = '; '.join(speeds)
+        if nets:
+            props['Network'] = ', '.join('none, just plug in' if x == 'Non-Networked' else x.removesuffix(' Network') for x in nets)
+        pricing = next((r['pricing'] for r in site if r.get('pricing')), None)
+        if pricing:
+            props['Cost'] = pricing
+        hours = next((r['hours'] for r in site if r.get('hours')), None)
+        if hours:
+            props['Hours'] = 'Open 24 hours' if hours.lower().startswith('24 hours') else hours
+        where = next((r['where'] for r in site if r.get('where')), None)
+        if where:
+            props['Where'] = where
+        if all(r.get('status') == 'T' for r in site):
+            props['Status'] = 'Temporarily out of service'
+        confirmed = max((r.get('confirmed') or '' for r in site), default='')
+        if confirmed:
+            props['Listing checked'] = f'{MONTHS[int(confirmed[5:7]) - 1]} {confirmed[:4]}'  # month + year only
+        lng = sum(r['lng'] for r in site) / len(site)
+        lat = sum(r['lat'] for r in site) / len(site)
+        out.append({'type': 'Feature', 'geometry': {'type': 'Point', 'coordinates': [round(lng, 6), round(lat, 6)]}, 'properties': props})
+    return out
+
+
 LAYERS = [
     {'map': 2, 'name': 'Streetlights', 'rows': 'streetlights.jsonl', 'min': 1000, 'build': streetlights,
      'settings': {'color': '#FFD54F', 'iconClass': 'Circle', 'browsable': True, 'inCaption': True, 'displayOnLoad': False,
@@ -92,4 +164,7 @@ LAYERS = [
      'settings': {'color': '#FB8C00', 'weight': 6, 'browsable': True, 'inCaption': True, 'displayOnLoad': False,
                   'fields': [{'key': 'name', 'type': 'String'}, {'key': 'Vehicles a day', 'type': 'String'},
                              {'key': 'Summer / winter', 'type': 'String'}, {'key': 'description', 'type': 'Text'}]}},
+    {'map': 7, 'name': 'EV Chargers', 'rows': 'ev.jsonl', 'min': 1, 'build': ev_chargers,
+     'settings': {'color': '#1E88E5', 'iconClass': 'Drop', 'browsable': True, 'inCaption': True,
+                  'fields': [{'key': 'name', 'type': 'String'}, {'key': 'Plugs', 'type': 'String'}]}},
 ]

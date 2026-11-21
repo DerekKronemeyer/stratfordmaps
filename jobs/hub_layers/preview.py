@@ -1,6 +1,6 @@
 # Dev-site preview: adds or refreshes the hub-fed layers in src/static/data/<map>.json, using the same layers.py
 # as the real refresh, without touching uMap (so nothing goes live).
-#   for q in streetlights traffic; do tailscale ssh derek@elsa 'docker exec -i maps-db psql -U datahub -d datahub -At' < $q.sql > <dir>/$q.jsonl; done
+#   for q in streetlights traffic ev; do tailscale ssh derek@elsa 'docker exec -i maps-db psql -U datahub -d datahub -At' < $q.sql > <dir>/$q.jsonl; done
 #   python preview.py <dir>     (then node build.mjs)
 import json, sys
 from pathlib import Path
@@ -9,7 +9,7 @@ HERE = Path(__file__).resolve().parent
 ns = {}
 exec((HERE / 'layers.py').read_text(encoding='utf-8'), ns)
 ns['IMPORT'] = sys.argv[1]
-SLUGS = {2: 'walking', 4: 'streets'}
+SLUGS = {2: 'walking', 4: 'streets', 7: 'community-resources'}
 STYLE_KEYS = ['color', 'weight', 'opacity', 'fillColor', 'fillOpacity', 'iconUrl']
 
 for spec in ns['LAYERS']:
