@@ -168,6 +168,7 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .map-panel fieldset { border: 0; margin: 0 0 12px; padding: 0; }
 .map-panel legend { padding: 0; margin-bottom: 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
 .map-panel label { display: flex; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer; font-size: 0.95rem; }
+.map-panel .layer-count { margin-left: auto; padding-left: 12px; color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 .map-panel input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
 .map-panel .inline { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 0; }
 .map-panel .inline legend { width: 100%; }
@@ -239,6 +240,19 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 /* Trace Water (Watershed): a mode button beside Info, and its note bottom left. */
 .map-buttons button[aria-pressed="true"] { background: var(--surface-hover); color: #5fd8ff; border-color: #5fd8ff; }
 .map-panel.flow-note { top: auto; bottom: 34px; width: 340px; min-width: 0; }
+/* Housing Density view options (Heatmap slider, Streets choices and legend). */
+.map-panel .sv-modes { margin: 10px 0 4px; }
+.map-panel .sv-modes .seg-row + .seg-row { margin-top: 8px; }
+.map-panel .sv-traffic { display: block; width: 100%; margin-top: 10px; padding: 7px 10px; font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.map-panel .sv-traffic[aria-pressed="true"] { color: var(--text); background: var(--surface-hover); border-color: #fd8d3c; }
+.map-panel .sv-hint { margin: 6px 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+.sv-tip .maplibregl-popup-content { padding: 6px 10px; font-size: 0.85rem; line-height: 1.35; pointer-events: none; }
+.sv-tip { pointer-events: none; }
+.map-panel .heat-legend { height: 8px; border-radius: 4px; margin-top: 8px; background: linear-gradient(90deg, rgba(43,131,186,0.55), #abdda4, #ffffbf, #fdae61, #d7191c); }
+.map-panel .heat-legend + .sv-legend-labels { margin-bottom: 4px; }
+.map-panel .sv-legend { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+.map-panel .sv-legend span { flex: 1; }
+.map-panel .sv-legend-labels { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-top: 3px; }
 .flow-note .flow-msg { margin: 0 0 10px; font-size: 0.95rem; line-height: 1.45; }
 .flow-note .flow-caveat { margin: 10px 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
 .bg-ctrl .bg-btn { display: grid; place-items: center; color: var(--text); }

@@ -147,6 +147,7 @@
     // view the dots hide and every ticked layer's points feed one heatmap, each point weighted by its number of
     // homes (its editable `Units` in uMap, else its layer's typical size from `heatmap.weights`).
     let view = 'dots';
+    let sv = null; // Streets view (`streets` in maps.json, streets.js)
     let picked = new Set(linkComps.length ? linkComps : comps.keys()); // components ticked in that list
     const boundsOf = (features) => features.flatMap((f) => allCoords(f.geometry.coordinates))
       .reduce(([[w, s], [e, n]], [x, y]) => [[Math.min(w, x), Math.min(s, y)], [Math.max(e, x), Math.max(n, y)]], [[180, 90], [-180, -90]]);
@@ -263,6 +264,7 @@
         map.setFilter('heat', ['in', ['get', '_lk'], ['literal', data.layers.filter((l) => l.show).map((l) => l.key)]]);
         map.setLayoutProperty('heat', 'visibility', view === 'heat' ? 'visible' : 'none');
       }
+      if (sv) { sv.active = view === 'streets'; sv.refresh(); }
       for (const l of data.layers) for (const { f, mk } of markers[l.key] || []) featureShown(l, f.properties) && view === 'dots' ? mk.addTo(map) : mk.remove(); // pins hide in heatmap view
     }
 
@@ -356,12 +358,19 @@
       const hitAt = (pt) => map.queryRenderedFeatures(pt, { layers: clickable }).find((x) => hasContent(layerOf[x.layer.id], x.properties));
       // Trace water (`flow` in maps.json, flow.js): while it is on, clicks trace instead of opening popups.
       const flow = cfg.flow && window.FlowTool ? window.FlowTool(map, cfg.flow) : null;
+      if (cfg.streets && window.StreetsView) { sv = window.StreetsView(map, data, cfg.streets); sv.onLegend = () => renderKey(); }
       map.on('click', (e) => {
         if (flow?.active) return;
+        if (view === 'streets' && sv) return sv.click(e, htmlPopup);
         const f = hitAt(e.point);
         if (f) showPopup(layerOf[f.layer.id], f, e.lngLat);
       });
-      map.on('mousemove', (e) => { if (!flow?.active) map.getCanvas().style.cursor = hitAt(e.point) ? 'pointer' : ''; });
+      map.on('mousemove', (e) => {
+        if (flow?.active) return;
+        map.getCanvas().style.cursor = view === 'streets' ? (sv?.mode === 'traffic' ? 'crosshair' : 'pointer') : hitAt(e.point) ? 'pointer' : '';
+        if (view === 'streets') sv?.hover(e);
+      });
+      map.getCanvas().addEventListener('mouseleave', () => sv?.hideTip());
 
       // A shared link to some network components: frame them.
       if (linkComps.length) zoomTo(linkComps.flatMap((k) => comps.get(k).features), false);
@@ -383,6 +392,11 @@
     // Keep popups clear of the pin (about 34px tall, anchored at its tip).
     const PIN_OFFSET = { top: [0, 0], bottom: [0, -36], left: [16, -18], right: [-16, -18], 'top-left': [0, 0], 'top-right': [0, 0], 'bottom-left': [0, -36], 'bottom-right': [0, -36] };
     let popup;
+    // A popup with ready-made HTML (Streets view: a street's numbers, or a note).
+    function htmlPopup(at, html) {
+      popup?.remove();
+      popup = new maplibregl.Popup({ maxWidth: '300px', focusAfterOpen: false }).setLngLat(at).setHTML(html).addTo(map);
+    }
     function showPopup(l, f, at) {
       const p = f.properties;
       if (!hasContent(l, p)) return;
@@ -527,19 +541,17 @@
     // Checkboxes normally; radio buttons on one-layer maps, so picking a layer switches off the last one.
     const layerInput = cfg.oneLayer ? 'type="radio" name="layer"' : 'type="checkbox"';
     // Listed top layer first, the same order as uMap's layer list (the data runs bottom layer first).
-    // Point and area layers with more than one feature show how many are on (e.g. "Birds (517)"), counting only what the Show
-    // choice lets through; a count already typed into the uMap name is dropped so it isn't doubled.
-    const layerLabel = (l) => {
-      const name = l.name.replace(/\s*\(\d[\d,]*\)\s*$/, '');
-      return l.kind === 'line' || l.features.length < 2 ? name : `${name} (${l.features.filter((f) => showOk(f.properties)).length.toLocaleString('en-CA')})`;
-    };
+    // Point and area layers with more than one feature show how many are on, in faint grey at the right of the row,
+    // counting only what the Show choice lets through; a count already typed into the uMap name is dropped.
+    const layerLabel = (l) => l.name.replace(/\s*\(\d[\d,]*\)\s*$/, '');
+    const layerCount = (l) => (l.kind === 'line' || l.features.length < 2 ? '' : l.features.filter((f) => showOk(f.properties)).length.toLocaleString('en-CA'));
     // A tick-all box above the list on maps with more than one layer to tick.
     // On those maps the box is the section heading ("LAYERS"); one-layer maps keep a plain heading.
     const layersHead = !cfg.oneLayer && data.layers.length > 1 ? '<label class="all-row key-head"><input type="checkbox" data-layers-all aria-label="Select all layers"><span>Layers</span></label>' : '<legend>Layers</legend>';
     const dateText = () => (datePreset === 'custom' ? (dateFrom ? `${dayLabel(dateFrom)} to ${dayLabel(dateTo)}` : 'Custom range') : datePreset === 'all' ? 'All' : PRESETS.find(([k]) => k === datePreset)[1]);
     const dateMenu = () => `<div class="date-menu">${PRESETS.map(([k, label]) => `<label><input type="radio" name="date-preset" value="${k}"${k === datePreset ? ' checked' : ''}><span>${label}</span></label>`).join('')}${datePreset === 'custom' ? `<div class="date-custom"><label>From <input type="date" data-date-input="from" min="${firstDay()}" max="${lastDay()}" value="${dateFrom || ''}"></label><label>To <input type="date" data-date-input="to" min="${firstDay()}" max="${lastDay()}" value="${dateTo || ''}"></label></div>` : ''}</div>`;
     const dateRow = () => (dates ? `<div class="seg-row"><span>${esc(dates.label || 'Date range')}</span><div class="seg"><button type="button" class="date-btn" data-date-btn aria-expanded="${dateMenuOpen}" aria-pressed="${datePreset !== 'all'}">${esc(dateText())} <span class="caret" aria-hidden="true">▾</span></button></div></div>${dateMenuOpen ? dateMenu() : ''}` : '');
-    const layersHtml = () => `<fieldset>${layersHead}${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span data-label="${i}">${esc(layerLabel(l))}</span></label>`).reverse().join('')}</fieldset>
+    const layersHtml = () => `<fieldset>${layersHead}${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span><span class="layer-count" data-count="${i}">${layerCount(l)}</span></label>`).reverse().join('')}</fieldset>
 ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-head"><span class="key-head">Filters</span><button type="button" class="reset-btn" data-clear>Reset</button></div>${cfg.search ? `<input type="search" class="search-box" data-search placeholder="Search names, notes, people…" aria-label="Search" value="${esc(searchText)}">` : ''}${done ? `<div class="seg-row"><span>${esc(done.label || done.field)}</span><div class="seg" role="group" aria-label="${esc(done.field)}">${[['all', 'All'], ['completed', 'Yes'], ['planned', 'No']].map(([k, label]) => `<button type="button" data-show="${k}" aria-pressed="${k === showMode}">${label}</button>`).join('')}</div></div>` : ''}${dateRow()}</fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {
@@ -565,13 +577,18 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
     };
     function renderKey() {
       const toggle = cfg.components ? `<div class="mode-toggle" role="group" aria-label="Map key view">${[['layers', 'Layers'], ['components', cfg.components.label]].map(([k, label]) => `<button type="button" data-mode="${k}" aria-pressed="${mode === k}">${esc(label)}</button>`).join('')}</div>`
-        : cfg.heatmap ? `<div class="mode-toggle" role="group" aria-label="Map view">${[['dots', 'Dots'], ['heat', 'Heatmap']].map(([k, label]) => `<button type="button" data-view="${k}" aria-pressed="${view === k}">${label}</button>`).join('')}</div>` : '';
+        : cfg.heatmap || cfg.streets ? `<div class="mode-toggle" role="group" aria-label="Map view">${[['dots', 'Dots'], ...(cfg.heatmap ? [['heat', 'Heatmap']] : []), ...(cfg.streets ? [['streets', 'Streets']] : [])].map(([k, label]) => `<button type="button" data-view="${k}" aria-pressed="${view === k}">${label}</button>`).join('')}</div>` : '';
+      // Options for the current view, under the switch.
+      // Streets: its own options (with its colour legend at the bottom). Heatmap: a colour legend at the bottom of the card.
+      const viewOptions = view === 'streets' && sv ? sv.html() : '';
+      const heatLegend = view === 'heat' ? '<div class="heat-legend"></div><div class="sv-legend-labels"><span>Fewer homes</span><span>More homes</span></div>' : '';
       keyPanel.classList.toggle('map-panel--wide', mode === 'components');
-      keyPanel.innerHTML = `${toggle}${mode === 'components' ? compsHtml() : layersHtml()}`;
+      // The layer list belongs to Dots and Heatmap; Streets always counts every building.
+      keyPanel.innerHTML = `${toggle}${viewOptions}${mode === 'components' ? compsHtml() : view !== 'streets' ? layersHtml() : ''}${heatLegend}`;
       syncAll();
     }
     renderKey();
-    const updateCounts = () => { for (const el of keyPanel.querySelectorAll('[data-label]')) el.textContent = layerLabel(data.layers[+el.dataset.label]); };
+    const updateCounts = () => { for (const el of keyPanel.querySelectorAll('[data-count]')) el.textContent = layerCount(data.layers[+el.dataset.count]); };
     let searchTimer;
     keyPanel.addEventListener('input', (e) => {
       if (e.target.dataset.search === undefined) return;
@@ -613,8 +630,15 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
       if (showBtn) { setShow(showBtn.dataset.show); renderKey(); } // layer counts follow the Yes/No choice
       // Reset (beside the FILTERS heading): every layer on, All, all dates, no search.
       if (e.target.closest('[data-clear]')) { for (const l of data.layers) l.show = true; dateFrom = dateTo = null; datePreset = 'all'; dateMenuOpen = false; searchText = ''; setShow('all'); renderKey(); }
+      const svBtn = e.target.closest('[data-sv]');
+      if (svBtn && sv) { popup?.remove(); sv.pick(svBtn.dataset.sv, svBtn.dataset.v); return; }
       const viewBtn = e.target.closest('[data-view]');
-      if (viewBtn && viewBtn.dataset.view !== view) { view = viewBtn.dataset.view; popup?.remove(); refresh(); renderKey(); }
+      if (viewBtn && viewBtn.dataset.view !== view) {
+        // Leaving a view puts its settings back to their defaults.
+        if (view === 'streets') sv?.reset();
+        if (view === 'dots' || view === 'heat') data.layers.forEach((l, i) => { l.show = defaultShow[i]; });
+        view = viewBtn.dataset.view; popup?.remove(); refresh(); renderKey();
+      }
       const modeBtn = e.target.closest('[data-mode]');
       if (modeBtn && modeBtn.dataset.mode !== mode) { mode = modeBtn.dataset.mode; resetView(); renderKey(); }
       const zoomBtn = e.target.closest('[data-zoom]');
