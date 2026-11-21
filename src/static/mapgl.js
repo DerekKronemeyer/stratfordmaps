@@ -66,13 +66,17 @@
   const emojiOf = (icon) => (icon && [...icon].length <= 4 && !/^https?:|\//.test(icon) ? icon : '');
 
   // Polygon centre (area-weighted, outer ring), for drawing a building outline as a dot.
+  // Measured from the ring's first corner: multiplying raw longitudes and latitudes loses the precision a
+  // building-sized shape needs (the dots landed tens of metres off).
   const centroid = (ring) => {
+    const [ox, oy] = ring[0];
     let a = 0, x = 0, y = 0;
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      const k = ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
-      a += k; x += (ring[j][0] + ring[i][0]) * k; y += (ring[j][1] + ring[i][1]) * k;
+      const xi = ring[i][0] - ox, yi = ring[i][1] - oy, xj = ring[j][0] - ox, yj = ring[j][1] - oy;
+      const k = xj * yi - xi * yj;
+      a += k; x += (xj + xi) * k; y += (yj + yi) * k;
     }
-    return a ? [x / (3 * a), y / (3 * a)] : ring[0];
+    return a ? [ox + x / (3 * a), oy + y / (3 * a)] : ring[0];
   };
   const inRing = ([px, py], ring) => {
     let inside = false;
