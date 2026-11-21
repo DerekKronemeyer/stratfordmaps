@@ -175,14 +175,14 @@
    "umap": "housing-density_12",
    "thumb": "/static/thumbs/housing-density.jpg",
    "areaDots": true,
-   "split": { "layer": "Residential buildings", "field": "Units", "classes": [
+   "split": { "layer": "Residential buildings", "field": "Units", "iconClass": "Circle", "classes": [
      { "name": "Singles", "label": "Single detached home" },
      { "name": "Doubles/Secondary Suites", "label": "Duplex or home with a suite" },
      { "name": "Triples & Quads", "label": "Triplex or fourplex" },
      { "name": "5-6 Units", "label": "5-6 unit building" },
      { "name": "7-12 Units", "label": "7-12 unit building" },
      { "name": "13+ Units", "label": "Apartment building" } ] },
-   "skipLayers": ["Draft outlines (review)", "(old) Singles", "(old) Doubles/Secondary Suites", "(old) Triples & Quads", "(old) 5-6 Units", "(old) 7-12 Units", "(old) 13+ Units"],
+   "skipLayers": ["Check street (review)", "Draft outlines (review)", "(old) Singles", "(old) Doubles/Secondary Suites", "(old) Triples & Quads", "(old) 5-6 Units", "(old) 7-12 Units", "(old) 13+ Units"],
    "heatmap": { "weights": { "Singles": 1, "Doubles/Secondary Suites": 2, "Triples & Quads": 3.5, "5-6 Units": 5.5, "7-12 Units": 10, "13+ Units": 18 } }
   },
   {

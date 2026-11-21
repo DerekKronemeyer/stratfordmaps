@@ -263,7 +263,7 @@
         map.setFilter('heat', ['in', ['get', '_lk'], ['literal', data.layers.filter((l) => l.show).map((l) => l.key)]]);
         map.setLayoutProperty('heat', 'visibility', view === 'heat' ? 'visible' : 'none');
       }
-      for (const l of data.layers) for (const { f, mk } of markers[l.key] || []) featureShown(l, f.properties) ? mk.addTo(map) : mk.remove();
+      for (const l of data.layers) for (const { f, mk } of markers[l.key] || []) featureShown(l, f.properties) && view === 'dots' ? mk.addTo(map) : mk.remove(); // pins hide in heatmap view
     }
 
     map.on('load', () => {
@@ -346,8 +346,8 @@
         map.addLayer({ id: 'heat', type: 'heatmap', source: 'heat-src', layout: { visibility: 'none' }, paint: {
           'heatmap-weight': ['get', '_w'],
           // Wide and soft zoomed out (neighbourhoods), tighter zoomed in so each building's outline shows through.
-          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 11, 4, 14, 18, 16, 30, 18, 55],
-          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 11, 0.12, 14, 0.15, 16, 0.3, 18, 0.6],
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 11, 6, 14, 28, 16, 48, 18, 88],
+          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 11, 0.09, 14, 0.11, 16, 0.22, 18, 0.45],
           'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 0.1, 'rgba(43,131,186,0.55)', 0.3, '#abdda4', 0.5, '#ffffbf', 0.7, '#fdae61', 1, '#d7191c'],
           'heatmap-opacity': 0.85,
         } });
