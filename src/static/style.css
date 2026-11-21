@@ -240,6 +240,11 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 /* Trace Water (Watershed): a mode button beside Info, and its note bottom left. */
 .map-buttons button[aria-pressed="true"] { background: var(--surface-hover); color: #5fd8ff; border-color: #5fd8ff; }
 .map-panel.flow-note { top: auto; bottom: 34px; width: 340px; min-width: 0; }
+.flow-note--embedded { margin-top: 12px; }
+.map-panel .feature-legend { margin-top: 12px; }
+.map-panel .feature-legend-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 0.95rem; }
+.map-panel .swatch-box { width: 16px; height: 12px; border: 2px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c) 25%, transparent); flex: none; }
+.flow-note--embedded [data-flow-close] { display: none; }
 /* Housing Density view options (Heatmap slider, Streets choices and legend). */
 .map-panel .sv-modes { margin: 10px 0 4px; }
 .map-panel .sv-modes .seg-row + .seg-row { margin-top: 8px; }

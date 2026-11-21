@@ -141,7 +141,12 @@
    "umap": "watershed_16",
    "thumb": "/static/thumbs/watershed.jpg",
    "background": "dark",
-   "flow": { "res": ["2m"] }
+   "flow": { "res": ["2m"] },
+   "insetOutlines": ["Watersheds"],
+   "views": [
+     { "key": "watersheds", "label": "Watersheds", "layers": [], "locked": ["Watersheds", "Contours (2 m)"], "legend": "Watersheds", "tool": "flow" },
+     { "key": "wetlands", "label": "Wetlands", "layers": ["Streams", "Wetlands", "No-build buffer (15 m)"] },
+     { "key": "flooding", "label": "Flooding", "layers": ["Inland flooding", "Coastal flooding"] } ]
   },
   {
    "slug": "wildlife",
@@ -193,7 +198,8 @@
    "description": "Stratford's three wards and their polling districts.",
    "source": "umap",
    "umap": "wards_13",
-   "thumb": "/static/thumbs/wards.jpg"
+   "thumb": "/static/thumbs/wards.jpg",
+   "insetOutlines": ["Ward 1- Kelly's Cove", "Ward 2 - Stewart Cove", "Ward 3 - Tea Hill"]
   },
   {
    "slug": "short-term-rentals",

@@ -195,13 +195,13 @@ const mapPage = (m) => `${head({
     <button type="button" id="map-key" aria-label="Map key" title="Map key" aria-controls="key-panel" aria-expanded="false">${icons.legend}<span>Map key</span></button>
     <button type="button" id="map-info" aria-label="Info" title="Info" aria-controls="info-panel" aria-expanded="false">${icons.info}<span>Info</span></button>
     ${m.leaderboard ? `<button type="button" id="map-leaders" aria-label="Leaderboard" title="Leaderboard" aria-controls="leaders-panel" aria-expanded="false">${icons.trophy}<span>Leaderboard</span></button>` : ''}
-    ${m.flow ? `<button type="button" id="map-flow" aria-label="Trace Water" title="Trace Water" aria-pressed="false">${icons.drop}<span>Trace Water</span></button>` : ''}
+    ${m.flow && !(m.views || []).some((v) => v.tool === 'flow') ? `<button type="button" id="map-flow" aria-label="Trace Water" title="Trace Water" aria-pressed="false">${icons.drop}<span>Trace Water</span></button>` : ''}
   </div>
   <div id="key-panel" class="map-panel" hidden></div>
   <div id="info-panel" class="map-panel map-panel--info" hidden></div>
   ${m.leaderboard ? '<div id="leaders-panel" class="map-panel map-panel--leaders" hidden></div>' : ''}
 </div>
-<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null })};</script>
+<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null, views: m.views || null, insetOutlines: m.insetOutlines || null })};</script>
 <script src="/static/vendor/maplibre-gl/maplibre-gl.js"></script>
 ${m.flow ? '<script src="/static/flow.js"></script>\n' : ''}${m.streets ? '<script src="/static/streets.js"></script>\n' : ''}<script src="/static/mapgl.js"></script>
 </body>

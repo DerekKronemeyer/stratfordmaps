@@ -101,6 +101,17 @@
   };
 
   fetch(cfg.data).then((r) => r.json()).then((data) => {
+    // `insetOutlines`: which side of each area's outline is inside (from the outer ring's winding), for line-offset.
+    // Set here, before the features go to the map, which copies them when the source is added.
+    for (const l of data.layers) if ((cfg.insetOutlines || []).includes(l.name)) for (const f of l.features) {
+      const g = f.geometry;
+      if (g.type !== 'Polygon' && g.type !== 'MultiPolygon') continue;
+      const ring = g.type === 'Polygon' ? g.coordinates[0] : g.coordinates[0][0];
+      const [ox, oy] = ring[0];
+      let a = 0;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += (ring[j][0] - ox) * (ring[i][1] - oy) - (ring[i][0] - ox) * (ring[j][1] - oy);
+      f.properties._inset = a > 0 ? 1 : -1;
+    }
     // `areaDots` (Housing Density): each building is kept as its outline in uMap, but drawn as a dot at its centre.
     // The outline is kept aside (f._outline) for the heatmap.
     if (cfg.areaDots) for (const l of data.layers) for (const f of l.features) {
@@ -151,6 +162,17 @@
     // view the dots hide and every ticked layer's points feed one heatmap, each point weighted by its number of
     // homes (its editable `Units` in uMap, else its layer's typical size from `heatmap.weights`).
     let view = 'dots';
+    // `views` in maps.json (Watershed): tabs at the top of the Map key, each with its own layers (`layers`, all ticked
+    // when the tab opens), `locked` layers shown without a tick, and an optional `tool` (flow = Trace Water).
+    const views = cfg.views || null;
+    if (views) view = views[0].key;
+    const viewDef = () => views?.find((v) => v.key === view);
+    const listed = (l) => !views || viewDef().layers.includes(l.name);
+    const inView = (l) => !views || listed(l) || (viewDef().locked || []).includes(l.name);
+    const enterView = () => { if (views) for (const l of data.layers) l.show = inView(l); };
+    enterView();
+    let flow = null; // Trace Water (flow.js), set once the map loads
+    const HOUSING_VIEWS = ['heat', 'streets', 'traffic']; // Housing Density views that hide the layers
     let sv = null; // Streets view (`streets` in maps.json, streets.js)
     let picked = new Set(linkComps.length ? linkComps : comps.keys()); // components ticked in that list
     const boundsOf = (features) => features.flatMap((f) => allCoords(f.geometry.coordinates))
@@ -257,19 +279,19 @@
     const baseFilter = {}; // MapLibre layer id -> its geometry filter (the show or component filter is added on top)
     // What is visible: in Layers mode the layer checkboxes and Show choice; in components mode the ticked components.
     const extraFilter = () => (mode === 'components' ? ['in', ['get', '_comp'], ['literal', [...picked]]] : showFilter());
-    const layerVisible = (l) => mode === 'components' || l.show;
-    const featureShown = (l, p) => (mode === 'components' ? picked.has(p._comp) : l.show && showOk(p));
+    const layerVisible = (l) => mode === 'components' || (l.show && inView(l));
+    const featureShown = (l, p) => (mode === 'components' ? picked.has(p._comp) : l.show && inView(l) && showOk(p));
     function refresh() {
       for (const [id, filter] of Object.entries(baseFilter)) {
         map.setFilter(id, ['all', filter, extraFilter()]);
-        map.setLayoutProperty(id, 'visibility', layerVisible(layerOf[id]) && view === 'dots' ? 'visible' : 'none');
+        map.setLayoutProperty(id, 'visibility', layerVisible(layerOf[id]) && !HOUSING_VIEWS.includes(view) ? 'visible' : 'none');
       }
       if (map.getLayer('heat')) {
         map.setFilter('heat', ['in', ['get', '_lk'], ['literal', data.layers.filter((l) => l.show).map((l) => l.key)]]);
         map.setLayoutProperty('heat', 'visibility', view === 'heat' ? 'visible' : 'none');
       }
       if (sv) { sv.active = view === 'streets' || view === 'traffic'; sv.refresh(); }
-      for (const l of data.layers) for (const { f, mk } of markers[l.key] || []) featureShown(l, f.properties) && view === 'dots' ? mk.addTo(map) : mk.remove(); // pins hide in heatmap view
+      for (const l of data.layers) for (const { f, mk } of markers[l.key] || []) featureShown(l, f.properties) && !HOUSING_VIEWS.includes(view) ? mk.addTo(map) : mk.remove(); // pins hide in heatmap view
     }
 
     map.on('load', () => {
@@ -287,7 +309,12 @@
         if (!l.features.some((f) => kindOf(f.geometry) === 'area')) continue;
         const isArea = ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false];
         add(l, { id: `${l.key}-fill`, type: 'fill', filter: isArea, paint: { 'fill-color': ['coalesce', ['get', '_fillColor'], ['get', '_color'], l.fillColor || l.color], 'fill-opacity': style('fillOpacity', l.fillOpacity) } }, true);
-        add(l, { id: `${l.key}-outline`, type: 'line', filter: isArea, paint: { 'line-color': style('color', l.color), 'line-width': style('weight', l.weight) } });
+        // `insetOutlines` (maps.json, layer names): the outline is drawn just inside each area, so where two areas share a
+        // border (watersheds, wards) both colours show side by side instead of the last one covering the other.
+        // _inset is the side the inside lies on (from the outer ring's winding); MapLibre offsets lines to their right.
+        const inset = (cfg.insetOutlines || []).includes(l.name); // _inset set when the data loads (see insetSide)
+        add(l, { id: `${l.key}-outline`, type: 'line', filter: isArea, paint: { 'line-color': style('color', l.color), 'line-width': style('weight', l.weight),
+          ...(inset ? { 'line-offset': ['*', ['coalesce', ['get', '_inset'], 0], ['/', style('weight', l.weight), 2]] } : {}) } });
       }
       for (const l of data.layers) {
         if (!l.features.some((f) => kindOf(f.geometry) === 'line')) continue;
@@ -361,7 +388,8 @@
       }
       const hitAt = (pt) => map.queryRenderedFeatures(pt, { layers: clickable }).find((x) => hasContent(layerOf[x.layer.id], x.properties));
       // Trace water (`flow` in maps.json, flow.js): while it is on, clicks trace instead of opening popups.
-      const flow = cfg.flow && window.FlowTool ? window.FlowTool(map, cfg.flow) : null;
+      flow = cfg.flow && window.FlowTool ? window.FlowTool(map, cfg.flow) : null;
+      if (views && viewDef().tool === 'flow') { flow?.setActive(true); renderKey(); }
       if (cfg.streets && window.StreetsView) { sv = window.StreetsView(map, data, cfg.streets); sv.onLegend = () => renderKey(); }
       map.on('click', (e) => {
         if (flow?.active) return;
@@ -555,7 +583,7 @@
     const dateText = () => (datePreset === 'custom' ? (dateFrom ? `${dayLabel(dateFrom)} to ${dayLabel(dateTo)}` : 'Custom range') : datePreset === 'all' ? 'All' : PRESETS.find(([k]) => k === datePreset)[1]);
     const dateMenu = () => `<div class="date-menu">${PRESETS.map(([k, label]) => `<label><input type="radio" name="date-preset" value="${k}"${k === datePreset ? ' checked' : ''}><span>${label}</span></label>`).join('')}${datePreset === 'custom' ? `<div class="date-custom"><label>From <input type="date" data-date-input="from" min="${firstDay()}" max="${lastDay()}" value="${dateFrom || ''}"></label><label>To <input type="date" data-date-input="to" min="${firstDay()}" max="${lastDay()}" value="${dateTo || ''}"></label></div>` : ''}</div>`;
     const dateRow = () => (dates ? `<div class="seg-row"><span>${esc(dates.label || 'Date range')}</span><div class="seg"><button type="button" class="date-btn" data-date-btn aria-expanded="${dateMenuOpen}" aria-pressed="${datePreset !== 'all'}">${esc(dateText())} <span class="caret" aria-hidden="true">▾</span></button></div></div>${dateMenuOpen ? dateMenu() : ''}` : '');
-    const layersHtml = () => `<fieldset>${layersHead}${data.layers.map((l, i) => `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span><span class="layer-count" data-count="${i}">${layerCount(l)}</span></label>`).reverse().join('')}</fieldset>
+    const layersHtml = () => `${data.layers.some(listed) ? `<fieldset>${layersHead}${data.layers.map((l, i) => !listed(l) ? '' : `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span><span class="layer-count" data-count="${i}">${layerCount(l)}</span></label>`).reverse().join('')}</fieldset>` : ''}
 ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-head"><span class="key-head">Filters</span><button type="button" class="reset-btn" data-clear>Reset</button></div>${cfg.search ? `<input type="search" class="search-box" data-search placeholder="Search names, notes, people…" aria-label="Search" value="${esc(searchText)}">` : ''}${done ? `<div class="seg-row"><span>${esc(done.label || done.field)}</span><div class="seg" role="group" aria-label="${esc(done.field)}">${[['all', 'All'], ['completed', 'Yes'], ['planned', 'No']].map(([k, label]) => `<button type="button" data-show="${k}" aria-pressed="${k === showMode}">${label}</button>`).join('')}</div></div>` : ''}${dateRow()}</fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {
@@ -581,14 +609,19 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
     };
     function renderKey() {
       const toggle = cfg.components ? `<div class="mode-toggle" role="group" aria-label="Map key view">${[['layers', 'Layers'], ['components', cfg.components.label]].map(([k, label]) => `<button type="button" data-mode="${k}" aria-pressed="${mode === k}">${esc(label)}</button>`).join('')}</div>`
+        : views ? `<div class="mode-toggle" role="group" aria-label="Map view">${views.map((v) => `<button type="button" data-view="${v.key}" aria-pressed="${view === v.key}">${esc(v.label)}</button>`).join('')}</div>`
         : cfg.heatmap || cfg.streets ? `<div class="mode-toggle" role="group" aria-label="Map view">${[['dots', 'Dots'], ...(cfg.heatmap ? [['heat', 'Heatmap']] : []), ...(cfg.streets ? [['streets', 'Streets'], ['traffic', 'Traffic']] : [])].map(([k, label]) => `<button type="button" data-view="${k}" aria-pressed="${view === k}">${label}</button>`).join('')}</div>` : '';
       // Options for the current view, under the switch.
       // Streets: its own options (with its colour legend at the bottom). Heatmap: a colour legend at the bottom of the card.
-      const viewOptions = (view === 'streets' || view === 'traffic') && sv ? sv.html() : '';
+      // A tab's `legend` (a layer name) lists that layer's features with their colours, e.g. the three watersheds.
+      const legendLayer = views && viewDef().legend && data.layers.find((l) => l.name === viewDef().legend);
+      const featureLegend = legendLayer ? `<div class="feature-legend">${legendLayer.features.map((f) => `<div class="feature-legend-row"><span class="swatch-box" style="--c:${esc(f.properties._color || legendLayer.color)}"></span><span>${esc(f.properties.name || '')}</span></div>`).join('')}</div>` : '';
+      const viewOptions = (view === 'streets' || view === 'traffic') && sv ? sv.html() : views ? `${featureLegend}${viewDef().tool ? '<div class="view-tool"></div>' : ''}` : '';
       const heatLegend = view === 'heat' ? '<div class="heat-legend"></div><div class="sv-legend-labels"><span>Fewer homes</span><span>More homes</span></div>' : '';
       keyPanel.classList.toggle('map-panel--wide', mode === 'components');
       // The layer list belongs to Dots and Heatmap; Streets and Traffic always count every building.
-      keyPanel.innerHTML = `${toggle}${viewOptions}${mode === 'components' ? compsHtml() : view === 'dots' || view === 'heat' ? layersHtml() : ''}${heatLegend}`;
+      keyPanel.innerHTML = `${toggle}${viewOptions}${mode === 'components' ? compsHtml() : !['streets', 'traffic'].includes(view) ? layersHtml() : ''}${heatLegend}`;
+      if (views && viewDef().tool === 'flow') flow?.mount(keyPanel.querySelector('.view-tool')); // Trace Water's note sits in the Map key
       syncAll();
     }
     renderKey();
@@ -637,6 +670,14 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
       const svBtn = e.target.closest('[data-sv]');
       if (svBtn && sv) { popup?.remove(); sv.pick(svBtn.dataset.sv, svBtn.dataset.v); return; }
       const viewBtn = e.target.closest('[data-view]');
+      if (viewBtn && viewBtn.dataset.view !== view && views) {
+        // Watershed-style tabs: the new tab's layers all ticked; Trace Water on only in its tab.
+        view = viewBtn.dataset.view;
+        enterView();
+        flow?.setActive(viewDef().tool === 'flow');
+        popup?.remove(); refresh(); renderKey();
+        return;
+      }
       if (viewBtn && viewBtn.dataset.view !== view) {
         // Leaving a view puts its settings back to their defaults.
         if (view === 'streets' || view === 'traffic') sv?.reset();

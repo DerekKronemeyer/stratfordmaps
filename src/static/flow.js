@@ -105,7 +105,7 @@ window.FlowTool = function (map, opt) {
   }
 
   // ---------- Button and note ----------
-  const btn = document.getElementById('map-flow'); // beside Info (build.mjs)
+  const btn = document.getElementById('map-flow'); // beside Info (build.mjs); absent when Trace is a Map key tab
   const note = document.createElement('div');
   note.className = 'map-panel flow-note';
   note.hidden = true;
@@ -148,12 +148,12 @@ ${resList.length > 1 ? `<div class="seg-row"><span>Detail</span><div class="seg"
   }
   function setActive(on) {
     tool.active = on;
-    btn.setAttribute('aria-pressed', String(on));
+    btn?.setAttribute('aria-pressed', String(on));
     note.hidden = !on;
     map.getCanvas().style.cursor = on ? 'crosshair' : '';
     if (on) { message = ''; renderNote(); } else { busy++; last = null; clear(); }
   }
-  btn.addEventListener('click', () => setActive(!tool.active));
+  btn?.addEventListener('click', () => setActive(!tool.active));
   note.addEventListener('click', (e) => {
     if (e.target.closest('[data-flow-close]')) return setActive(false);
     const pick = e.target.closest('[data-flow-res]');
@@ -161,9 +161,18 @@ ${resList.length > 1 ? `<div class="seg-row"><span>Detail</span><div class="seg"
     res = pick.dataset.flowRes;
     if (last) trace(last); else renderNote();
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && tool.active) setActive(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && tool.active && !tool.embedded) setActive(false); });
   map.on('click', (e) => { if (tool.active) trace(e.lngLat); });
   map.on('mousemove', () => { if (tool.active) map.getCanvas().style.cursor = 'crosshair'; });
-  const tool = { active: false };
+  const tool = { active: false, embedded: false, setActive };
+  // Trace as a Map key tab: the note moves into the key (no Close button; leaving the tab turns the tool off).
+  tool.mount = (el) => {
+    if (!el) return;
+    tool.embedded = true;
+    note.classList.add('flow-note--embedded');
+    note.classList.remove('map-panel');
+    note.hidden = !tool.active;
+    el.append(note);
+  };
   return tool;
 };
