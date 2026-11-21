@@ -175,13 +175,14 @@ window.StreetsView = function (map, data, opt) {
         if (nv < D[m]) { D[m] = nv; via[m] = id; push(m, nv); }
       }
     }
-    // Each building's people join its street at the nearest point (not drawn), leave by the nearer end of that piece of
-    // street, then follow the tree to the destination.
-    const flow = new Float64Array(arcs.length), load = new Float64Array(nodes.length);
+    // Each building's households join its street at the nearest point (drawn as a short line from the building),
+    // leave by the nearer end of that piece of street, then follow the tree to the destination.
+    const flow = new Float64Array(arcs.length), load = new Float64Array(nodes.length), links = [];
     // Households (homes) reaching the destination from each end of its piece of street, shown as two halves.
     const side = { a: 0, b: 0 };
     for (const b of counted()) {
       const t = b.units, h = b.hook, H = arcs[h.arc];
+      links.push([b.f.geometry.coordinates, h.at, t]); // the building's way onto its street
       if (h.arc === d.arc) { side[h.along < d.along ? 'a' : 'b'] += t; continue; }
       const viaA = D[H.a] + h.along, viaB = D[H.b] + (H.len - h.along);
       if (!Number.isFinite(Math.min(viaA, viaB))) continue;
@@ -197,9 +198,10 @@ window.StreetsView = function (map, data, opt) {
       flow[via[n]] += load[n];
       load[m] += load[n];
     }
-    // Colours on a log scale: a quiet street (tens of households) and a main road (thousands) land far apart.
+    // Colours on a softened square-root scale (power 0.35, Derek's pick): busy roads stay distinct (1,000 vs 4,000 households look different, which a log
+    // scale squeezed together) while quiet streets still read lighter than busier ones.
     const max = Math.max(1, side.a, side.b, ...flow);
-    const frac = (t) => Math.log10(1 + t) / Math.log10(1 + max);
+    const frac = (t) => Math.pow(t / max, 0.35);
     const sc = { max, color: (t) => (t <= 0 ? '#9e9e9e' : RAMP[Math.min(RAMP.length - 1, Math.floor(frac(t) * RAMP.length))]) };
     legend = { breaks: [1], max, households: true };
     const width = (t) => 0.8 + 2.2 * Math.min(1, frac(t));
@@ -207,6 +209,7 @@ window.StreetsView = function (map, data, opt) {
       properties: { c: sc.color(t), w: t > 0 ? width(t) : 0.6, zero: t <= 0, name, homes: Math.round(t) } });
     const feats = arcs.map((a, i) => (i === d.arc ? null : piece(nodes[a.a], nodes[a.b], flow[i], a.name))).filter(Boolean);
     feats.push(piece(nodes[A.a], d.at, side.a, A.name), piece(d.at, nodes[A.b], side.b, A.name));
+    for (const [from, to, t] of links) feats.push(piece(from, to, t, 'Driveway'));
     map.getSource('sv-lines').setData({ type: 'FeatureCollection', features: feats });
   }
 
@@ -221,12 +224,10 @@ window.StreetsView = function (map, data, opt) {
   };
   sv.reset = () => { sv.mode = 'homes'; sv.dest = null; tip.remove(); map.getSource('sv-dest').setData(EMPTY); };
   sv.setMode = (m) => { sv.mode = m; tip.remove(); sv.refresh(); };
-  // A Map key button: count (homes/bldgs), measure (total/per100) or traffic (on).
+  // A Streets switch button: count (homes/bldgs) or measure (total/per100).
   sv.pick = (what, v) => {
-    const homes = !sv.mode.startsWith('bldgs'), per = sv.mode.endsWith('M');
-    if (what === 'traffic') return sv.setMode(sv.mode === 'traffic' ? 'homes' : 'traffic');
-    const h = what === 'count' ? v === 'homes' : sv.mode === 'traffic' ? true : homes;
-    const m = what === 'measure' ? v === 'per100' : sv.mode === 'traffic' ? false : per;
+    const h = what === 'count' ? v === 'homes' : !sv.mode.startsWith('bldgs');
+    const m = what === 'measure' ? v === 'per100' : sv.mode.endsWith('M');
     sv.setMode((h ? 'homes' : 'bldgs') + (m ? 'M' : ''));
   };
   // A click: in traffic mode it picks the destination; otherwise it shows the street's numbers.
@@ -255,15 +256,17 @@ window.StreetsView = function (map, data, opt) {
   sv.hideTip = () => tip.remove();
   // The Map key's options for this view: one choice per mode, a hint for traffic, and a colour legend.
   const fmt = (x) => (legend?.perMetre ? (100 * x).toFixed(1) : Math.round(x).toLocaleString('en-CA')); // per metre shown per 100 m
+  // The Map key's options: Streets gets Count and Measure switches; Traffic (its own tab) gets instructions. Both
+  // end with the colour legend.
   sv.html = () => {
     const traffic = sv.mode === 'traffic', homes = !sv.mode.startsWith('bldgs'), per = sv.mode.endsWith('M');
-    const seg = (what, pairs, on) => `<div class="seg">${pairs.map(([v, label]) => `<button type="button" data-sv="${what}" data-v="${v}" aria-pressed="${!traffic && on === v}">${label}</button>`).join('')}</div>`;
+    const seg = (what, pairs, on) => `<div class="seg">${pairs.map(([v, label]) => `<button type="button" data-sv="${what}" data-v="${v}" aria-pressed="${on === v}">${label}</button>`).join('')}</div>`;
     const unit = traffic ? 'households' : homes ? 'homes' : 'buildings';
-    return `<fieldset class="sv-modes">
-<div class="seg-row"><span>Count</span>${seg('count', [['homes', 'Homes'], ['bldgs', 'Buildings']], homes ? 'homes' : 'bldgs')}</div>
-<div class="seg-row"><span>Measure</span>${seg('measure', [['total', 'Total'], ['per100', 'Per 100 m']], per ? 'per100' : 'total')}</div>
-<button type="button" class="sv-traffic" data-sv="traffic" aria-pressed="${traffic}">Where would traffic go?</button>
-${traffic ? `<p class="sv-hint">${sv.dest ? 'Click the map to move the destination.' : 'Click anywhere in Stratford to pick a destination.'} Every household drives there by the shortest route; each street shows how many households pass along it.</p>` : ''}
+    const top = traffic
+      ? `<p class="sv-hint sv-hint--lead">${sv.dest ? 'Click the map to move the destination.' : 'Click anywhere in Stratford to pick a destination.'} Every household drives there by the shortest route; each street shows how many households pass along it.</p>`
+      : `<div class="seg-row"><span>Count</span>${seg('count', [['homes', 'Homes'], ['bldgs', 'Buildings']], homes ? 'homes' : 'bldgs')}</div>
+<div class="seg-row"><span>Measure</span>${seg('measure', [['total', 'Total'], ['per100', 'Per 100 m']], per ? 'per100' : 'total')}</div>`;
+    return `<fieldset class="sv-modes">${top}
 ${legend && legend.breaks.length ? `<div class="sv-legend">${RAMP.map((c) => `<span style="background:${c}"></span>`).join('')}</div><div class="sv-legend-labels"><span>Fewer ${unit}</span><span>More (up to ${fmt(legend.max)}${legend.perMetre ? ' per 100 m' : ''})</span></div>` : ''}</fieldset>`;
   };
   return sv;

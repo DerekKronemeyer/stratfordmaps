@@ -246,6 +246,7 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .map-panel .sv-traffic { display: block; width: 100%; margin-top: 10px; padding: 7px 10px; font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--muted); background: none; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
 .map-panel .sv-traffic[aria-pressed="true"] { color: var(--text); background: var(--surface-hover); border-color: #fd8d3c; }
 .map-panel .sv-hint { margin: 6px 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4; }
+.map-panel .sv-hint--lead { margin-top: 0; font-size: 0.92rem; color: var(--text); }
 .sv-tip .maplibregl-popup-content { padding: 6px 10px; font-size: 0.85rem; line-height: 1.35; pointer-events: none; }
 .sv-tip { pointer-events: none; }
 .map-panel .heat-legend { height: 8px; border-radius: 4px; margin-top: 8px; background: linear-gradient(90deg, rgba(43,131,186,0.55), #abdda4, #ffffbf, #fdae61, #d7191c); }

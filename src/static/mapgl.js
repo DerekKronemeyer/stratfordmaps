@@ -268,7 +268,7 @@
         map.setFilter('heat', ['in', ['get', '_lk'], ['literal', data.layers.filter((l) => l.show).map((l) => l.key)]]);
         map.setLayoutProperty('heat', 'visibility', view === 'heat' ? 'visible' : 'none');
       }
-      if (sv) { sv.active = view === 'streets'; sv.refresh(); }
+      if (sv) { sv.active = view === 'streets' || view === 'traffic'; sv.refresh(); }
       for (const l of data.layers) for (const { f, mk } of markers[l.key] || []) featureShown(l, f.properties) && view === 'dots' ? mk.addTo(map) : mk.remove(); // pins hide in heatmap view
     }
 
@@ -365,14 +365,14 @@
       if (cfg.streets && window.StreetsView) { sv = window.StreetsView(map, data, cfg.streets); sv.onLegend = () => renderKey(); }
       map.on('click', (e) => {
         if (flow?.active) return;
-        if (view === 'streets' && sv) return sv.click(e, htmlPopup);
+        if ((view === 'streets' || view === 'traffic') && sv) return sv.click(e, htmlPopup);
         const f = hitAt(e.point);
         if (f) showPopup(layerOf[f.layer.id], f, e.lngLat);
       });
       map.on('mousemove', (e) => {
         if (flow?.active) return;
-        map.getCanvas().style.cursor = view === 'streets' ? (sv?.mode === 'traffic' ? 'crosshair' : 'pointer') : hitAt(e.point) ? 'pointer' : '';
-        if (view === 'streets') sv?.hover(e);
+        map.getCanvas().style.cursor = view === 'traffic' ? 'crosshair' : view === 'streets' ? 'pointer' : hitAt(e.point) ? 'pointer' : '';
+        if (view === 'traffic') sv?.hover(e);
       });
       map.getCanvas().addEventListener('mouseleave', () => sv?.hideTip());
 
@@ -581,14 +581,14 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
     };
     function renderKey() {
       const toggle = cfg.components ? `<div class="mode-toggle" role="group" aria-label="Map key view">${[['layers', 'Layers'], ['components', cfg.components.label]].map(([k, label]) => `<button type="button" data-mode="${k}" aria-pressed="${mode === k}">${esc(label)}</button>`).join('')}</div>`
-        : cfg.heatmap || cfg.streets ? `<div class="mode-toggle" role="group" aria-label="Map view">${[['dots', 'Dots'], ...(cfg.heatmap ? [['heat', 'Heatmap']] : []), ...(cfg.streets ? [['streets', 'Streets']] : [])].map(([k, label]) => `<button type="button" data-view="${k}" aria-pressed="${view === k}">${label}</button>`).join('')}</div>` : '';
+        : cfg.heatmap || cfg.streets ? `<div class="mode-toggle" role="group" aria-label="Map view">${[['dots', 'Dots'], ...(cfg.heatmap ? [['heat', 'Heatmap']] : []), ...(cfg.streets ? [['streets', 'Streets'], ['traffic', 'Traffic']] : [])].map(([k, label]) => `<button type="button" data-view="${k}" aria-pressed="${view === k}">${label}</button>`).join('')}</div>` : '';
       // Options for the current view, under the switch.
       // Streets: its own options (with its colour legend at the bottom). Heatmap: a colour legend at the bottom of the card.
-      const viewOptions = view === 'streets' && sv ? sv.html() : '';
+      const viewOptions = (view === 'streets' || view === 'traffic') && sv ? sv.html() : '';
       const heatLegend = view === 'heat' ? '<div class="heat-legend"></div><div class="sv-legend-labels"><span>Fewer homes</span><span>More homes</span></div>' : '';
       keyPanel.classList.toggle('map-panel--wide', mode === 'components');
-      // The layer list belongs to Dots and Heatmap; Streets always counts every building.
-      keyPanel.innerHTML = `${toggle}${viewOptions}${mode === 'components' ? compsHtml() : view !== 'streets' ? layersHtml() : ''}${heatLegend}`;
+      // The layer list belongs to Dots and Heatmap; Streets and Traffic always count every building.
+      keyPanel.innerHTML = `${toggle}${viewOptions}${mode === 'components' ? compsHtml() : view === 'dots' || view === 'heat' ? layersHtml() : ''}${heatLegend}`;
       syncAll();
     }
     renderKey();
@@ -639,9 +639,11 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
       const viewBtn = e.target.closest('[data-view]');
       if (viewBtn && viewBtn.dataset.view !== view) {
         // Leaving a view puts its settings back to their defaults.
-        if (view === 'streets') sv?.reset();
+        if (view === 'streets' || view === 'traffic') sv?.reset();
         if (view === 'dots' || view === 'heat') data.layers.forEach((l, i) => { l.show = defaultShow[i]; });
-        view = viewBtn.dataset.view; popup?.remove(); refresh(); renderKey();
+        view = viewBtn.dataset.view;
+        if (view === 'traffic' && sv) sv.mode = 'traffic';
+        popup?.remove(); refresh(); renderKey();
       }
       const modeBtn = e.target.closest('[data-mode]');
       if (modeBtn && modeBtn.dataset.mode !== mode) { mode = modeBtn.dataset.mode; resetView(); renderKey(); }
