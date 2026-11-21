@@ -165,6 +165,6 @@ LAYERS = [
                   'fields': [{'key': 'name', 'type': 'String'}, {'key': 'Vehicles a day', 'type': 'String'},
                              {'key': 'Summer / winter', 'type': 'String'}, {'key': 'description', 'type': 'Text'}]}},
     {'map': 7, 'name': 'EV Chargers', 'rows': 'ev.jsonl', 'min': 1, 'build': ev_chargers,
-     'settings': {'color': '#1E88E5', 'iconClass': 'Drop', 'browsable': True, 'inCaption': True,
+     'settings': {'color': '#1E88E5', 'iconClass': 'Drop', 'iconUrl': '🔌', 'browsable': True, 'inCaption': True,
                   'fields': [{'key': 'name', 'type': 'String'}, {'key': 'Plugs', 'type': 'String'}]}},
 ]
