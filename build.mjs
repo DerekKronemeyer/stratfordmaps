@@ -47,6 +47,7 @@ ${image ? `<meta property="og:image:width" content="640">
 <meta name="twitter:card" content="summary_large_image">
 ` : ''}<meta name="theme-color" content="#1f2125">
 <link rel="icon" href="/static/favicon.png">
+<script>if (['127.0.0.1', 'localhost'].includes(location.hostname)) document.querySelector('link[rel=icon]').href = '/static/favicon-dev.png'; // grey tab icon on the dev site</script>
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 ${extraHead}<link rel="stylesheet" href="/static/style.css">
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "dcb4e8cff9d44692b51cd52b5c36fafe"}'></script>
