@@ -22,6 +22,7 @@ src/  ── node build.mjs ──► dist/ ──► Cloudflare Workers (static
 - **Publishing is automatic.** The uMap server runs the fetch every night and commits and pushes any changes as "Map updates from uMap"; a "Publish to site" button on the uMap dashboard runs it on demand. Pull before changing code locally.
 - **Photos:** any `{{image url}}` in a description is copied into `src/static/data/photos/` by the fetch, so the site never hotlinks.
 - **Shareable links:** `/walking?layers=best,winter&feature=fullertons-creek-conservation-park` opens the Walking map with only those layers on and that place's popup open. Friendly layer names come from `layers` in `src/maps.json`; places are matched on their permanent `id` field.
+- **Navigation (Walking map):** a Map key tab that finds walking routes between two points (typed addresses, taps or My location), with two settings: Quiet streets and Sidewalks and trails, each Any / Prefer / Only. Routing runs in the browser (`src/static/route.js`, Dijkstra) over a prebuilt network, `src/static/data/walking-network.json`: the Walking Routes from uMap joined to the Province's road centrelines, every piece tagged busy / sidewalk / trail / road crossing. A crosswalk is wherever a Walking Routes line crosses a road. The network is built by `jobs/walking_network/build.py` (Python + shapely), which the nightly sync runs right after the fetch; it skips itself when Walking Routes haven't changed. Links: `/walking?view=navigation&from=12+Keppoch+Road&to=46.22140,-63.08900&quiet=only` (settings left at Prefer are not written).
 - **On phones**, each map opens zoomed to fit what's switched on; on desktop it opens on the view set in uMap.
 - **Backgrounds** (top-right button): the Town of Stratford's 2025 aerial photos (the default), the Town's more detailed 2018 photos, and OpenStreetMap streets. Esri aerial fills in around the Town's photos but is not offered on its own. The Town's photos are served from a Cloudflare R2 bucket (`stratfordmaps-tiles`, at `tiles.stratfordmaps.ca/aerial-2018/` and `/aerial-2025b/`, as `{z}/{x}/{y}.webp`): the Town's tiles converted to WebP, with empty tiles dropped and the black fill outside the photo area made transparent so Esri shows through.
 
@@ -53,6 +54,8 @@ Pushing to `main` deploys automatically (Cloudflare Workers Builds: build `node 
 | `src/resources.json` | links on the Resources page, grouped |
 | `src/site.json` | site name, address, tagline, contact links |
 | `src/static/mapgl.js` | draws a map page: layers, pins, popups, Map key and Info panels |
+| `src/static/route.js` | Navigation on the Walking map: address search, routing, the result panel |
+| `jobs/walking_network/` | builds the walking network (`build.py`; busy streets, distances and underpasses are set at the top) from Walking Routes + `roads.geojson` (Province road centrelines near town) |
 | `src/static/style.css` | all styles (dark theme) |
 | `src/static/data/` | map data and photos from uMap (made by `fetch-umap.mjs`) |
 | `src/static/thumbs/` | card photos (640×360, also used for Facebook link previews) |
@@ -62,6 +65,7 @@ Pushing to `main` deploys automatically (Cloudflare Workers Builds: build `node 
 ## Credits
 
 - Maps drawn with [MapLibre GL JS](https://maplibre.org/) (BSD-3-Clause, `src/static/vendor/maplibre-gl/LICENSE.txt`) and edited in [uMap](https://umap-project.org/) (AGPL).
+- Road centrelines and civic addresses © Province of Prince Edward Island; ground elevation from Natural Resources Canada (HRDEM).
 - Aerial imagery © Esri and its partners, and 2018 and 2025 aerial photos © Town of Stratford (2025 from the Province of PEI); street map © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
 - Logo by Derek Kronemeyer; Town of Stratford emblem used with the Town's permission.
 - Layout inspired by [Bike Ottawa Maps](https://maps.bikeottawa.ca) and [Seattle Atlas](https://seattleatlas.org).

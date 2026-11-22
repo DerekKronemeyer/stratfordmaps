@@ -1,6 +1,6 @@
 // Builds the static site into dist/ from the files in src/. No dependencies: `node build.mjs`.
 // To add a map, add it to src/maps.json, pull its data with `node fetch-umap.mjs <slug>`, then rebuild.
-import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
@@ -201,9 +201,9 @@ const mapPage = (m) => `${head({
   <div id="info-panel" class="map-panel map-panel--info" hidden></div>
   ${m.leaderboard ? '<div id="leaders-panel" class="map-panel map-panel--leaders" hidden></div>' : ''}
 </div>
-<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null, views: m.views || null, insetOutlines: m.insetOutlines || null })};</script>
+<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, route: m.route || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null, views: m.views || null, insetOutlines: m.insetOutlines || null })};</script>
 <script src="/static/vendor/maplibre-gl/maplibre-gl.js"></script>
-${m.flow ? '<script src="/static/flow.js"></script>\n' : ''}${m.streets ? '<script src="/static/streets.js"></script>\n' : ''}<script src="/static/mapgl.js"></script>
+${m.flow ? '<script src="/static/flow.js"></script>\n' : ''}${m.route ? '<script src="/static/route.js"></script>\n' : ''}${m.streets ? '<script src="/static/streets.js"></script>\n' : ''}<script src="/static/mapgl.js"></script>
 </body>
 </html>
 `;
@@ -214,7 +214,8 @@ const redirect = (to) => `<!doctype html><meta charset="utf-8"><title>Redirectin
 // ---------- Build ----------
 
 // Cache busting: "/static/x.png" becomes "/static/x.png?v=<content hash>", so browsers fetch changed files.
-const bust = (html) => html.replace(/"\/static\/([\w./-]+)"/g, (_, file) => {
+const bust = (html) => html.replace(/"\/static\/([\w./-]+)"/g, (whole, file) => {
+  if (!statSync(join('src', 'static', file), { throwIfNoEntry: false })?.isFile()) return whole; // folders (e.g. elevation tiles) stay as they are
   const hash = createHash('md5').update(readFileSync(join('src', 'static', file))).digest('hex').slice(0, 8);
   return `"/static/${file}?v=${hash}"`;
 });

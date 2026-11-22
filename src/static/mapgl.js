@@ -163,15 +163,17 @@
     // homes (its editable `Units` in uMap, else its layer's typical size from `heatmap.weights`).
     let view = 'dots';
     // `views` in maps.json (Watershed): tabs at the top of the Map key, each with its own layers (`layers`, all ticked
-    // when the tab opens), `locked` layers shown without a tick, and an optional `tool` (flow = Trace Water).
+    // when the tab opens; "all" = every layer, starting as uMap has them), `locked` layers shown without a tick, and an
+    // optional `tool` (flow = Trace Water, route = Navigation).
     const views = cfg.views || null;
-    if (views) view = views[0].key;
+    if (views) view = (views.find((v) => v.key === params.get('view')) || views[0]).key; // ?view=navigation opens that tab
     const viewDef = () => views?.find((v) => v.key === view);
-    const listed = (l) => !views || viewDef().layers.includes(l.name);
+    const listed = (l) => !views || viewDef().layers === 'all' || viewDef().layers.includes(l.name);
     const inView = (l) => !views || listed(l) || (viewDef().locked || []).includes(l.name);
-    const enterView = () => { if (views) for (const l of data.layers) l.show = inView(l); };
+    const enterView = () => { if (views) data.layers.forEach((l, i) => { l.show = viewDef().layers === 'all' ? defaultShow[i] : inView(l); }); };
     enterView();
     let flow = null; // Trace Water (flow.js), set once the map loads
+    let route = null; // Navigation (route.js), set once the map loads
     const HOUSING_VIEWS = ['heat', 'streets', 'traffic']; // Housing Density views that hide the layers
     let sv = null; // Streets view (`streets` in maps.json, streets.js)
     let picked = new Set(linkComps.length ? linkComps : comps.keys()); // components ticked in that list
@@ -281,6 +283,19 @@
     const extraFilter = () => (mode === 'components' ? ['in', ['get', '_comp'], ['literal', [...picked]]] : showFilter());
     const layerVisible = (l) => mode === 'components' || (l.show && inView(l));
     const featureShown = (l, p) => (mode === 'components' ? picked.has(p._comp) : l.show && inView(l) && showOk(p));
+    // A tab's `muted` layers (Navigation: Walking Routes) are drawn faintly so the tab's own lines stand out.
+    const mutedOrig = new Map();
+    function applyMute() {
+      const muted = new Set((views && viewDef().muted) || []);
+      for (const l of data.layers) for (const ly of map.getStyle().layers.filter((x) => x.id.startsWith(`${l.key}-`))) {
+        const props = ly.type === 'line' ? ['line-opacity'] : ly.type === 'circle' ? ['circle-opacity', 'circle-stroke-opacity'] : [];
+        for (const pr of props) {
+          const k = `${ly.id}|${pr}`;
+          if (!mutedOrig.has(k)) mutedOrig.set(k, map.getPaintProperty(ly.id, pr) ?? 1);
+          map.setPaintProperty(ly.id, pr, muted.has(l.name) ? (ly.id.endsWith('-casing') ? 0.15 : 0.4) : mutedOrig.get(k));
+        }
+      }
+    }
     function refresh() {
       for (const [id, filter] of Object.entries(baseFilter)) {
         map.setFilter(id, ['all', filter, extraFilter()]);
@@ -390,9 +405,13 @@
       // Trace water (`flow` in maps.json, flow.js): while it is on, clicks trace instead of opening popups.
       flow = cfg.flow && window.FlowTool ? window.FlowTool(map, cfg.flow) : null;
       if (views && viewDef().tool === 'flow') { flow?.setActive(true); renderKey(); }
+      // Navigation (`route` in maps.json, route.js): while its tab is open, taps set the start and end.
+      route = cfg.route && window.RouteTool ? window.RouteTool(map, cfg.route) : null;
+      if (views && viewDef().tool === 'route') { route?.setActive(true); renderKey(); }
+      if (views) applyMute();
       if (cfg.streets && window.StreetsView) { sv = window.StreetsView(map, data, cfg.streets); sv.onLegend = () => renderKey(); }
       map.on('click', (e) => {
-        if (flow?.active) return;
+        if (flow?.active || route?.active) return;
         if ((view === 'streets' || view === 'traffic') && sv) return sv.click(e, htmlPopup);
         const f = hitAt(e.point);
         if (f) showPopup(layerOf[f.layer.id], f, e.lngLat);
@@ -622,6 +641,7 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
       // The layer list belongs to Dots and Heatmap; Streets and Traffic always count every building.
       keyPanel.innerHTML = `${toggle}${viewOptions}${mode === 'components' ? compsHtml() : !['streets', 'traffic'].includes(view) ? layersHtml() : ''}${heatLegend}`;
       if (views && viewDef().tool === 'flow') flow?.mount(keyPanel.querySelector('.view-tool')); // Trace Water's note sits in the Map key
+      if (views && viewDef().tool === 'route') route?.mount(keyPanel.querySelector('.view-tool'));
       syncAll();
     }
     renderKey();
@@ -675,6 +695,8 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
         view = viewBtn.dataset.view;
         enterView();
         flow?.setActive(viewDef().tool === 'flow');
+        route?.setActive(viewDef().tool === 'route');
+        applyMute();
         popup?.remove(); refresh(); renderKey();
         return;
       }
@@ -725,7 +747,7 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
     };
     for (const b of buttons) b.addEventListener('click', () => show(b.getAttribute('aria-expanded') === 'true' ? null : b));
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') show(null); });
-    if (narrow) map.on('click', () => show(null));
-    show(narrow ? null : document.getElementById('map-key')); // desktop opens with the key showing
+    if (narrow) map.on('click', () => { if (!route?.active) show(null); }); // Navigation keeps its panel open: taps set points
+    show(narrow && !(views && params.get('view') && view === params.get('view')) ? null : document.getElementById('map-key')); // desktop opens with the key showing; so does a link to a tab
   });
 })();

@@ -37,7 +37,7 @@
    "slug": "walking",
    "title": "Walking",
    "category": "transportation",
-   "description": "Walking routes, groomed winter trails, low-tide hikes and the best walks in Stratford.",
+   "description": "Walking routes, groomed winter trails, low-tide hikes and the best walks in Stratford, plus navigation.",
    "source": "umap",
    "umap": "walking_2",
    "layers": {
@@ -45,9 +45,13 @@
     "winter": "248eb7c8-8a3e-449b-912f-710b207922ae",
     "best": "0419a0a0-9106-48ff-a5cc-662f8c025df5",
     "lowtide": "f2dc22ec-cc51-40d8-abe6-917061dc8aab",
-    "crosswalks": "ff56e332-52e5-4941-b7b4-534d72f286a5",
     "nocrosswalks": "68270f2d-be11-4f53-bf0c-6306a536bc17"
    },
+   "views": [
+    { "key": "map", "label": "Map", "layers": "all" },
+    { "key": "navigation", "label": "Navigation", "layers": [], "locked": ["Walking Routes"], "muted": ["Walking Routes"], "tool": "route" }
+   ],
+   "route": { "network": "/static/data/walking-network.json", "addresses": "/static/data/lookup.json", "elevation": "/static/flow/2m" },
    "thumb": "/static/thumbs/walking.jpg"
   },
   {
