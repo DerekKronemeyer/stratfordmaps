@@ -290,7 +290,7 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 }
 @media (max-width: 560px) { .nav-long { display: none; } }
 @media (max-width: 440px) { .site-header .brand span { display: none; } }
-@media (max-width: 380px) { .grid { grid-template-columns: 1fr; } .card p { display: block; } }
+@media (max-width: 320px) { .grid { grid-template-columns: 1fr; } .card p { display: block; } } /* two cards per row on most phones (360-430 px); one only on the narrowest */
 
 /* Directions (route.js), inside the Walking Map key's Directions tab */
 .route-panel { display: grid; gap: 12px; }
