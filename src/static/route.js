@@ -23,11 +23,10 @@ window.RouteTool = function (map, opt) {
   const pref = Object.fromEntries(PREFS.map((p) => [p.key, p.def]));
   const level = (rule) => pref[PREFS.find((p) => p.rule === rule).key]; // 'any' | 'prefer' | 'only' for busy / infra / cross
   // How much longer a piece "feels" under Prefer (multiplies its length), and the extra metres for an unmarked road crossing.
-  // Prefer weights (Derek 2026-11-23), against a trail = 1x: a busy street (on or beside) 2x, a sidewalk 1.5x, a street
-  // with no sidewalk 2x. They add up: a sidewalk beside a busy street counts 1 + 1 + 0.5 = 2.5x.
-  const AVOID = { busy: 2, infra: 2 };
-  const SIDEWALK_PREFER = 1.5;
-  const TCH_PREFER = 3; // walking beside the TCH counts 3x on Quiet streets = Prefer: it's far busier than the other busy streets (Derek 2026-11-23)
+  // Prefer weights (Derek 2026-11-23): sidewalks and trails 1x, a street with no sidewalk 1.5x, a busy street (on or beside)
+  // 1.5x, so both settings weigh the same. They add up: walking on a quiet street with no sidewalk beside a busy one = 2x.
+  const AVOID = { busy: 1.5, infra: 1.5 };
+  const TCH_PREFER = 2.5; // walking beside the TCH counts 2.5x on Quiet streets = Prefer, 1x above the other busy streets: it's far busier (Derek 2026-11-23)
   const isTch = (e) => /^Trans Canada/.test(e.name || '');
   const SIDEWALK_PULL = 5; // on Any and Prefer, a road stretch with a sidewalk alongside counts as 5x its length (Derek 2026-11-23)
   const CROSS_ANY_M = 10; // per half crossing, crosswalk or not: switching sides has to save about 20 m (Derek 2026-11-22: no zigzagging)
@@ -82,7 +81,6 @@ window.RouteTool = function (map, opt) {
     rule('busy', e.flags & F.busy);
     if (e.flags & F.busy && !(e.flags & F.cross) && isTch(e) && level('busy') === 'prefer') m += TCH_PREFER - AVOID.busy;
     rule('infra', !(e.flags & F.infra));
-    if (e.flags & F.infra && e.flags & F.sidewalk && level('infra') === 'prefer') m += SIDEWALK_PREFER - 1; // trails beat sidewalks
     // A road with a sidewalk or trail right beside it: use the sidewalk even on Any, unless the road is a real shortcut.
     if (!(e.flags & F.infra) && e.flags & F.side && level('infra') !== 'only') m += SIDEWALK_PULL - (level('infra') === 'prefer' ? AVOID.infra : 1); // tops up Any 1x / Prefer 2x to 5x
     if (e.flags & F.cross && !(e.flags & F.under)) add += e.flags & F.crossBusy ? CROSS_BUSY_M : CROSS_ANY_M; // crossings take time; busy streets more, so routes keep to one side of them. The underpass is free: it's just trail (Derek 2026-11-23)
