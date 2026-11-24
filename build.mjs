@@ -176,6 +176,12 @@ const notFoundBody = `<article class="lost">
 // ---------- Map pages ----------
 
 // A full-screen map drawn by /static/mapgl.js from /static/data/<slug>.json (made by fetch-umap.mjs).
+// The uMap Info text as plain paragraphs, so search engines read it without running the map script (mapgl.js swaps in the rich version).
+const infoText = (m) => {
+  const d = JSON.parse(readFileSync(join('src', 'static', 'data', `${m.slug}.json`), 'utf8'));
+  return String(d.description || m.description || '').replace(/\{\{[^}]*\}\}/g, ' ').replace(/\[\[[^|\]]*\|([^\]]*)\]\]/g, '$1').replace(/\[\[[^\]]*\]\]/g, ' ').replace(/https?:\/\/\S+/g, ' ').replace(/\*/g, '')
+    .split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).map((p) => `<p>${esc(p)}</p>`).join('');
+};
 const mapPage = (m) => `${head({
   title: `${m.title} | ${site.name}`,
   description: m.description,
@@ -199,7 +205,7 @@ const mapPage = (m) => `${head({
     ${m.flow && !(m.views || []).some((v) => v.tool === 'flow') ? `<button type="button" id="map-flow" aria-label="Trace Water" title="Trace Water" aria-pressed="false">${icons.drop}<span>Trace Water</span></button>` : ''}
   </div>
   <div id="key-panel" class="map-panel" hidden></div>
-  <div id="info-panel" class="map-panel map-panel--info" hidden></div>
+  <div id="info-panel" class="map-panel map-panel--info" hidden>${infoText(m)}</div>
   ${m.leaderboard ? '<div id="leaders-panel" class="map-panel map-panel--leaders" hidden></div>' : ''}
 </div>
 <script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, route: m.route || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null, views: m.views || null, insetOutlines: m.insetOutlines || null })};</script>
