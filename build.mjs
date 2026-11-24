@@ -41,7 +41,7 @@ const head = ({ title, description, path, image, extraHead = '' }) => `<!doctype
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="${esc(site.name)}">
-${path ? `<meta property="og:url" content="${site.url}${path}">\n` : ''}<meta property="og:image" content="${site.url}${image || '/static/logo.png'}">
+${path ? `<meta property="og:url" content="${site.url}${path}">\n<link rel="canonical" href="${site.url}${path}">\n` : ''}<meta property="og:image" content="${site.url}${image || '/static/logo.png'}">
 ${image ? `<meta property="og:image:width" content="640">
 <meta property="og:image:height" content="360">
 <meta name="twitter:card" content="summary_large_image">
