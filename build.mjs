@@ -244,4 +244,17 @@ for (const m of mapsWithPages) {
   if (!existsSync(join('src', 'static', 'data', `${m.slug}.json`))) throw new Error(`No data for ${m.slug}: run \`node fetch-umap.mjs ${m.slug}\` first.`);
   writePage(m.slug, mapPage(m));
 }
+
+// Search engines: list every real page (not redirects or the 404) and point crawlers at the list.
+const sitemapPaths = ['/', '/about', '/lookup', '/resources', ...mapsWithPages.map((m) => `/${m.slug}`)];
+writeFileSync(join(OUT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${sitemapPaths.map((p) => `<url><loc>${site.url}${p}</loc></url>`).join('\n')}
+</urlset>
+`);
+writeFileSync(join(OUT, 'robots.txt'), `User-agent: *
+Allow: /
+
+Sitemap: ${site.url}/sitemap.xml
+`);
 console.log(`Built ${mapsWithPages.length} map pages into ${OUT}/`);
