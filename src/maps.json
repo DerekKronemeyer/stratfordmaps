@@ -79,6 +79,7 @@
    "description": "Every street in town by type, paving and name suffix, plus roundabouts and traffic lights.",
    "source": "umap",
    "umap": "streets_4",
+   "layerColors": { "All Streets": "#0288D1" },
    "thumb": "/static/thumbs/streets.jpg"
   },
   {

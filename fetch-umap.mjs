@@ -100,7 +100,7 @@ for (const m of targets) {
     layers.push({
       key,
       name: o.name,
-      color: o.color || 'DarkBlue',
+      color: (m.layerColors || {})[o.name] || o.color || 'DarkBlue', // `layerColors` in maps.json: site colour that differs from uMap's
       weight: o.weight ?? 3,
       opacity: o.opacity ?? map.opacity ?? 1,
       fillColor: o.fillColor || null,
