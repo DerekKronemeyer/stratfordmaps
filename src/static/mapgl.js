@@ -228,7 +228,8 @@
       },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-    map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }), 'top-right');
+    const geolocate = new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true });
+    map.addControl(geolocate, 'top-right');
     if (document.fullscreenEnabled) map.addControl(new maplibregl.FullscreenControl(), 'top-right');
     // Background switcher: its own button under the map controls, opening a small menu beside it.
     class BackgroundControl {
@@ -407,6 +408,11 @@
       if (views && viewDef().tool === 'flow') { flow?.setActive(true); renderKey(); }
       // Navigation (`route` in maps.json, route.js): while its tab is open, taps set the start and end.
       route = cfg.route && window.RouteTool ? window.RouteTool(map, cfg.route) : null;
+      if (route) { // Start (Navigation): close the Map key and show the blue dot; Edit reopens the key
+        route.geolocate = geolocate;
+        route.onLock = () => show(null);
+        route.onUnlock = () => show(document.getElementById('map-key'));
+      }
       if (views && viewDef().tool === 'route') { route?.setActive(true); renderKey(); }
       if (views) applyMute();
       if (cfg.streets && window.StreetsView) { sv = window.StreetsView(map, data, cfg.streets); sv.onLegend = () => renderKey(); }
@@ -720,7 +726,8 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
     });
     const updated = data.updated ? new Date(data.updated).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', timeZone: 'America/Halifax' }) : ''; // month and year only, never the day
     // The map's description from uMap (links allowed), or the card text if uMap has none.
-    document.getElementById('info-panel').innerHTML = `${richText(data.description || cfg.description)}${updated ?`<p class="updated">Updated ${updated}</p>` : ''}`;
+    const links = (cfg.infoLinks || []).map((l) => `<p class="info-link"><a href="${esc(l.href)}">${esc(l.text)}</a></p>`).join(''); // maps.json infoLinks
+    document.getElementById('info-panel').innerHTML = `${richText(data.description || cfg.description)}${links}${updated ?`<p class="updated">Updated ${updated}</p>` : ''}`;
 
     // Leaderboard (`leaderboard` in maps.json, e.g. Wildlife's top contributors): the 10 people with the most features,
     // counted from a hidden field (`_by`), all time and every layer, whatever the filters show.
@@ -746,7 +753,7 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
       }
     };
     for (const b of buttons) b.addEventListener('click', () => show(b.getAttribute('aria-expanded') === 'true' ? null : b));
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') show(null); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !route?.active) show(null); }); // in Navigation, Escape clears the trip instead (route.js)
     if (narrow) map.on('click', () => { if (!route?.active) show(null); }); // Navigation keeps its panel open: taps set points
     show(narrow && !(views && params.get('view') && view === params.get('view')) ? null : document.getElementById('map-key')); // desktop opens with the key showing; so does a link to a tab
   });

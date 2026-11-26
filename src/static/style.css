@@ -303,6 +303,8 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .route-dot--b, .route-pin--b { background: #eb5757; }
 .route-prefs { display: grid; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
 .route-prefs .seg-row { font-size: 0.9rem; }
+.route-checks { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.9rem; }
+.route-checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .route-prefs .seg button { padding: 5px 9px; }
 .route-result:empty { display: none; }
 .route-result { border-top: 1px solid var(--border); padding-top: 12px; display: grid; gap: 6px; }
@@ -334,3 +336,53 @@ body.site .page { flex: 1 0 auto; width: 100%; }
 .route-profile { display: block; width: 100%; height: 46px; }
 .route-profile-labels { display: flex; justify-content: space-between; margin: -2px 0 4px; font-size: 0.75rem; color: var(--muted); }
 .route-suggest li[aria-selected="true"] { background: var(--surface-hover); color: var(--text); }
+
+/* Navigation on phones: compact, so the panel fits without scrolling (Derek 2026-11-23) */
+@media (max-width: 700px) {
+  .map-panel:has(.route-panel) { padding: 10px 12px; }
+  .map-panel:has(.route-panel) .mode-toggle { margin-bottom: 8px; }
+  .map-panel:has(.route-panel) .mode-toggle button { padding: 5px 8px; font-size: 0.8rem; }
+  .route-panel { gap: 8px; }
+  .route-points { gap: 4px; font-size: 0.85rem; }
+  .route-field input { padding: 4px 8px; font-size: 0.85rem; }
+  .route-icon-btn { width: 26px; height: 26px; }
+  .route-dot { width: 18px; height: 18px; font-size: 0.65rem; }
+  .route-actions .reset-btn { padding: 2px 8px; font-size: 0.75rem; }
+  .route-prefs { gap: 4px; padding-top: 8px; }
+  .route-prefs .seg-row { font-size: 0.82rem; }
+  .route-prefs .seg button { padding: 3px 8px; font-size: 0.78rem; }
+  .route-checks { font-size: 0.82rem; }
+  .route-result { gap: 3px; padding-top: 8px; }
+  .route-total strong { font-size: 1.05rem; }
+  .route-total span, .route-climb { font-size: 0.78rem; }
+  .route-bar { height: 6px; margin: 0 0 2px; }
+  .route-profile { height: 28px; }
+  .route-profile-labels { font-size: 0.68rem; margin: -2px 0 0; }
+  .route-row { font-size: 0.8rem; gap: 6px; }
+  .route-note, .route-msg { font-size: 0.78rem; margin-top: 2px; }
+  .route-fail { font-size: 0.8rem; padding-left: 8px; }
+  .route-fail ul { padding-left: 16px; }
+}
+/* Navigation rows never overflow: labels wrap, the Any / Prefer / Only buttons stay whole; the total never splits */
+.route-prefs .seg-row > span { flex: 1 1 auto; min-width: 0; }
+.route-prefs .seg { flex: none; }
+.route-total { flex-wrap: wrap; column-gap: 8px; row-gap: 0; }
+.route-total strong, .route-total span { white-space: nowrap; }
+.route-field { min-width: 0; }
+/* Navigation: Start (lock the trip in) and the summary strip while locked */
+.route-actions .start-btn { margin-left: auto; padding: 4px 16px; font: inherit; font-size: 0.85rem; font-weight: 700; color: #12261a; background: var(--accent); border: 0; border-radius: 8px; cursor: pointer; }
+.route-actions .start-btn:disabled { opacity: 0.35; cursor: default; }
+.route-actions .start-btn:not(:disabled):hover { filter: brightness(1.1); }
+.route-panel button:disabled:not(.start-btn), .route-panel input:disabled { opacity: 0.5; cursor: default; }
+.route-strip { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; box-shadow: 0 4px 16px rgba(0,0,0,.4); font-size: 0.9rem; white-space: nowrap; }
+.route-strip[hidden] { display: none; }
+.route-strip strong { margin-right: 4px; }
+.route-strip button { padding: 4px 14px; font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--text); background: var(--surface-hover); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; }
+@media (max-width: 700px) { .route-actions .start-btn { padding: 2px 14px; font-size: 0.78rem; } .route-strip { bottom: 28px; font-size: 0.82rem; } }
+
+/* The walking network page (/walking/network) */
+.map-bar h1 a { color: inherit; text-decoration: none; }
+.map-bar h1 a:hover { text-decoration: underline; }
+.net-panel { display: grid; gap: 6px; font-size: 0.9rem; max-width: 320px; }
+.net-panel p { margin: 0 0 4px; }
+.net-panel label { display: flex; align-items: center; gap: 8px; cursor: pointer; }

@@ -184,8 +184,10 @@ const notFoundBody = `<article class="lost">
 const infoText = (m) => {
   const d = JSON.parse(readFileSync(join('src', 'static', 'data', `${m.slug}.json`), 'utf8'));
   return String(d.description || m.description || '').replace(/\{\{[^}]*\}\}/g, ' ').replace(/\[\[[^|\]]*\|([^\]]*)\]\]/g, '$1').replace(/\[\[[^\]]*\]\]/g, ' ').replace(/https?:\/\/\S+/g, ' ').replace(/\*/g, '')
-    .split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).map((p) => `<p>${esc(p)}</p>`).join('');
+    .split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).map((p) => `<p>${esc(p)}</p>`).join('') + infoLinks(m);
 };
+// `infoLinks` in maps.json: site links under a map's Info text, e.g. the walking network page (mapgl.js adds them too)
+const infoLinks = (m) => (m.infoLinks || []).map((l) => `<p class="info-link"><a href="${esc(l.href)}">${esc(l.text)}</a></p>`).join('');
 const mapPage = (m) => `${head({
   title: `${m.title} | ${site.name}`,
   description: m.description,
@@ -212,9 +214,36 @@ const mapPage = (m) => `${head({
   <div id="info-panel" class="map-panel map-panel--info" hidden>${infoText(m)}</div>
   ${m.leaderboard ? '<div id="leaders-panel" class="map-panel map-panel--leaders" hidden></div>' : ''}
 </div>
-<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, route: m.route || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null, views: m.views || null, insetOutlines: m.insetOutlines || null })};</script>
+<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, route: m.route || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null, views: m.views || null, insetOutlines: m.insetOutlines || null, infoLinks: m.infoLinks || null })};</script>
 <script src="/static/vendor/maplibre-gl/maplibre-gl.js"></script>
 ${m.flow ? '<script src="/static/flow.js"></script>\n' : ''}${m.route ? '<script src="/static/route.js"></script>\n' : ''}${m.streets ? '<script src="/static/streets.js"></script>\n' : ''}<script src="/static/mapgl.js"></script>
+</body>
+</html>
+`;
+
+// The walking network page: what Navigation finds routes on (drawn by /static/network.js), linked from the Walking Info.
+const networkPage = () => `${head({
+  title: `Walking network | ${site.name}`,
+  description: 'The walking network behind Navigation on the Walking map: walking routes, sidewalks and the edges of every street.',
+  path: '/walking/network',
+  extraHead: '<link rel="stylesheet" href="/static/vendor/maplibre-gl/maplibre-gl.css">\n',
+})}
+<body class="map-page">
+<header class="map-bar">
+  <a class="brand" href="/" title="All maps">${logo}<span class="brand-name">${esc(site.name)}</span></a>
+  <span class="sep" aria-hidden="true">/</span>
+  <h1><a href="/walking">Walking</a> / Network</h1>
+  <nav>${facebookLink}</nav>
+</header>
+<div class="map-wrap">
+  <div id="map" role="region" aria-label="Walking network map"></div>
+  <div class="map-panel net-panel" id="net-key">
+    <p>This is what Navigation finds routes on: the walking routes from the Walking map, plus both edges of every street, since that's where people walk when there's no sidewalk. Low-tide routes and private roads are only used when you tick them.</p>
+    <p><a href="/walking?view=navigation">Back to Navigation</a></p>
+  </div>
+</div>
+<script src="/static/vendor/maplibre-gl/maplibre-gl.js"></script>
+<script src="/static/network.js"></script>
 </body>
 </html>
 `;
@@ -250,6 +279,7 @@ writePage('home', redirect('/'));
 writePage('feedback', redirect('/about#feedback'));
 
 const mapsWithPages = maps.filter((m) => m.source === 'umap');
+writePage('walking/network', networkPage());
 for (const m of mapsWithPages) {
   if (!existsSync(join('src', 'static', 'data', `${m.slug}.json`))) throw new Error(`No data for ${m.slug}: run \`node fetch-umap.mjs ${m.slug}\` first.`);
   writePage(m.slug, mapPage(m));

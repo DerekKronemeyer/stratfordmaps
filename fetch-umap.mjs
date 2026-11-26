@@ -79,11 +79,13 @@ for (const m of targets) {
   // in maps.json; any other layer gets a key made from its name.
   const keyFor = Object.fromEntries(Object.entries(m.layers || {}).map(([key, uuid]) => [uuid, key]));
   const usedKeys = new Set();
-  const layers = [];
+  const layers = [], dataOnly = [];
   // `skipLayers` in maps.json names uMap layers to leave off the site (kept in uMap for reference).
+  // `dataOnlyLayers` are fetched into the data file under `dataOnly` but not drawn on the site (Navigation reads them).
   for (const dl of map.datalayers) {
     if ((m.skipLayers || []).includes(dl.properties?.name ?? dl.name)) continue;
     const fc = await getJson(`${UMAP_URL}/en/datalayer/${id}/${dl.id}/`);
+    if ((m.dataOnlyLayers || []).includes(dl.properties?.name ?? dl.name)) { dataOnly.push({ name: dl.properties?.name ?? dl.name, features: fc.features.map(flattenFeature) }); continue; }
     const o = { ...(dl.properties || {}), ...(fc._umap_options || {}) };
     // `split` (Housing Density): this one uMap layer becomes several site layers by a number field.
     if (m.split && o.name === m.split.layer) {
@@ -141,8 +143,9 @@ for (const m of targets) {
     updated: new Date(Math.max(Date.parse(map.modified_at) || 0, ...map.datalayers.map((dl) => Number(dl.referenceVersion) || 0))).toISOString(),
     basemap: t ? { name: t.name, url: t.url_template, attribution: t.attribution, maxzoom: t.maxNativeZoom || t.maxZoom || 19 } : null,
     layers,
+    ...(dataOnly.length ? { dataOnly } : {}),
   };
   mkdirSync(DATA, { recursive: true });
   writeFileSync(join(DATA, `${m.slug}.json`), JSON.stringify(out));
-  console.log(`${m.slug}: ${layers.map((l) => `${l.name} (${l.features.length})`).join(', ')}`);
+  console.log(`${m.slug}: ${layers.map((l) => `${l.name} (${l.features.length})`).join(', ')}${dataOnly.length ? `; data only: ${dataOnly.map((l) => `${l.name} (${l.features.length})`).join(', ')}` : ''}`);
 }
