@@ -80,6 +80,7 @@
    "source": "umap",
    "umap": "streets_4",
    "layerColors": { "All Streets": "#0288D1" },
+   "skipLayers": ["New service roads"],
    "thumb": "/static/thumbs/streets.jpg"
   },
   {
