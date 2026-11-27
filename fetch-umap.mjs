@@ -56,7 +56,7 @@ const localizePhotos = async (props) => {
   for (const [key, value] of Object.entries(props)) {
     if (typeof value !== 'string' || !value.includes('{{')) continue;
     let text = value;
-    for (const [, url] of value.matchAll(/\{\{(https?:\/\/[^}\s]+)\}\}/g)) text = text.replace(url, await localPhoto(url));
+    for (const [, url] of value.matchAll(/\{\{(https?:\/\/[^}\s|]+)(?:\|\d+)?\}\}/g)) text = text.replace(url, await localPhoto(url));
     props[key] = text;
   }
 };

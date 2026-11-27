@@ -211,14 +211,25 @@
    "heatmap": { "weights": { "Single detached homes": 1, "Duplexes and homes with a suite": 2, "Triplexes and fourplexes": 3.5, "Townhouses (5 or 6 homes)": 5.5, "Apartments (7 to 12 homes)": 10, "Large apartments (13+ homes)": 18 } }
   },
   {
-   "slug": "wards",
-   "title": "Municipal Wards",
+   "slug": "electoral-boundaries",
+   "title": "Electoral Boundaries",
    "category": "town-info",
-   "description": "Stratford's three wards and their polling districts.",
+   "description": "Find out who represents you, from your councillor to your MLA and MP.",
    "source": "umap",
    "umap": "wards_13",
-   "thumb": "/static/thumbs/wards.jpg",
-   "insetOutlines": ["Ward 1- Kelly's Cove", "Ward 2 - Stewart Cove", "Ward 3 - Tea Hill"]
+   "views": [
+    { "key": "municipal", "label": "Municipal", "fit": true, "layers": ["Ward 1- Kelly's Cove", "Ward 2 - Stewart Cove", "Ward 3 - Tea Hill", "Town Boundary"] },
+    { "key": "provincial", "label": "Provincial", "fit": true, "layers": ["Mermaid-Stratford", "Stratford-Keppoch"] },
+    { "key": "federal", "label": "Federal", "fit": true, "layers": ["Cardigan (federal riding)"] }
+   ],
+   "insetOutlines": [
+    "Ward 1- Kelly's Cove",
+    "Ward 2 - Stewart Cove",
+    "Ward 3 - Tea Hill",
+    "Mermaid-Stratford",
+    "Stratford-Keppoch"
+   ],
+   "thumb": "/static/thumbs/wards.jpg"
   },
   {
    "slug": "short-term-rentals",

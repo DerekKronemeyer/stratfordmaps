@@ -277,6 +277,7 @@ writePage('resources', page({ title: `Resources | ${site.name}`, description: 'O
 writeFileSync(join(OUT, '404.html'), bust(page({ title: `Page not found | ${site.name}`, description: 'Page not found.', body: notFoundBody })));
 writePage('home', redirect('/'));
 writePage('feedback', redirect('/about#feedback'));
+writePage('wards', redirect('/electoral-boundaries')); // renamed 2026-11-28 (was Municipal Wards)
 
 const mapsWithPages = maps.filter((m) => m.source === 'umap');
 writePage('walking/network', networkPage());

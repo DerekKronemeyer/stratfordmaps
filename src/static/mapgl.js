@@ -15,8 +15,10 @@
     if (lines.length > 1 && /^<strong>[^<]+<\/strong>$/.test(lines[0])) return `<p class="h">${lines[0]}</p>${block(lines.slice(1).join('\n'))}`;
     return `<p>${p.replace(/\n/g, '<br>')}</p>`;
   };
-  // uMap text: {{image url}}, [[url|label]] links, bare URLs, **bold**, *italic*, lists, line breaks.
+  // uMap text: {{image url}} (or {{url|width}}), [[url|label]] links, bare URLs, **bold**, *italic*, lists, line breaks.
   const richText = (s) => esc(s)
+    // {{url|90}} (uMap's width syntax): a small photo beside the text that follows it, like a headshot next to contact details.
+    .replace(/\{\{((?:https?:\/\/|\/)[^}\s|]+)\|(\d+)\}\}\n?/g, '<img class="thumb" src="$1" alt="" loading="lazy" width="$2">')
     .replace(/\{\{((?:https?:\/\/|\/)[^}\s]+)\}\}/g, '<img src="$1" alt="" loading="lazy">')
     // A link to a sound file becomes a small player ([[https://.../sound.m4a|Recording]]).
     .replace(/\[\[(https?:\/\/[^|\]\s]+\.(?:mp3|m4a|wav|ogg)(?:\?[^|\]\s]*)?)\|([^\]]+)\]\]/gi, '<audio controls preload="none" src="$1" title="$2"></audio>')
@@ -422,6 +424,7 @@
       }
       if (views && viewDef().tool === 'route') { route?.setActive(true); renderKey(); }
       if (views) applyMute();
+      if (views && params.get('view')) fitView(false);
       if (cfg.streets && window.StreetsView) { sv = window.StreetsView(map, data, cfg.streets); sv.onLegend = () => renderKey(); }
       map.on('click', (e) => {
         if (flow?.active || route?.active) return;
@@ -584,6 +587,11 @@
       const padding = narrow ? 40 : { top: 60, bottom: 60, left: 360, right: 60 };
       map.fitBounds(boundsOf(features), { padding, maxZoom: 17, animate });
     }
+    // `fit` on a view in maps.json (Electoral Boundaries): opening that tab frames its layers (a district or riding bigger than the town).
+    function fitView(animate = true) {
+      if (!viewDef()?.fit) return;
+      zoomTo(data.layers.filter((l) => listed(l)).flatMap((l) => l.features), animate);
+    }
     // Back to how the selections first open: default layers, the default Show choice, every component ticked.
     // The map stays where it is.
     function resetView() {
@@ -713,6 +721,7 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
         route?.setActive(viewDef().tool === 'route');
         applyMute();
         popup?.remove(); refresh(); renderKey();
+        fitView();
         return;
       }
       if (viewBtn && viewBtn.dataset.view !== view) {
