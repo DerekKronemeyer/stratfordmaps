@@ -72,7 +72,7 @@ BUSY_TYPES = {'Arterial', 'Highway'}    # busy roads
 HIGHWAY_TYPE = 'Highway'                # crossed only on a walking route (a drawn crosswalk or a grade-separated crossing)
 SERVICE_TYPE = 'Service'                # parking aisles, drive-through and service lanes, shared driveways (Derek 2026-11-27):
 SERVICE_NAME = 'Service road'           # narrow, never busy, no crossings of the road they join (their own mouth is crossed)
-SERVICE_LAYERS = ['New service roads']  # Streets map layers whose lines are all service roads (field Unpaved)
+SERVICE_LAYERS = ['Service Roads']  # Streets map layers whose lines are all service roads (field Unpaved)
 PRIVATE_TYPE = 'Private'                # private roads: tagged, so Navigation can avoid them unless ticked
 LOW_TIDE_LAYERS = ['Low Tide Hike']     # Walking map layers that are only walkable at low tide: tagged, off unless ticked
 # Road widths: metres from the centreline to each edge

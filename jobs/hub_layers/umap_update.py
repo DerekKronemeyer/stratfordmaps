@@ -9,6 +9,26 @@ from umap.models import DataLayer, Map
 for spec in LAYERS:
     if not os.path.exists(f"{IMPORT}/{spec['rows']}"):
         continue
+    if spec.get('field'):  # fill one field of an existing layer's features; never creates the layer
+        if len(rows(spec['rows'])) < spec['min']:
+            print(f"{spec['name']}: too few rows, left as is"); continue
+        dl = DataLayer.objects.filter(map__pk=spec['map'], name=spec['name']).exclude(share_status=99).first()
+        if dl is None:
+            print(f"{spec['name']}: no such layer on map {spec['map']}, left as is"); continue
+        gj = json.loads(dl.geojson.read())
+        vals = spec['values'](gj['features'])
+        n = 0
+        for f in gj['features']:
+            v, props = vals[id(f)], f.setdefault('properties', {})
+            if props.get(spec['field']) != v:
+                n += 1
+                if v is None: props.pop(spec['field'], None)
+                else: props[spec['field']] = v
+        if n:
+            dl.geojson.save(f'{dl.uuid}.geojson', ContentFile(json.dumps(gj).encode()), save=False)
+            dl.save()
+        print(f"{spec['name']}: {spec['field']} changed on {n} features")
+        continue
     feats = spec['build']()
     if len(feats) < spec['min']:
         print(f"{spec['name']}: only {len(feats)} features, left as is")

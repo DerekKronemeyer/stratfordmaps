@@ -214,7 +214,7 @@ const mapPage = (m) => `${head({
   <div id="info-panel" class="map-panel map-panel--info" hidden>${infoText(m)}</div>
   ${m.leaderboard ? '<div id="leaders-panel" class="map-panel map-panel--leaders" hidden></div>' : ''}
 </div>
-<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, route: m.route || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null, views: m.views || null, insetOutlines: m.insetOutlines || null, infoLinks: m.infoLinks || null })};</script>
+<script>window.MAP_CONFIG = ${JSON.stringify({ title: m.title, description: m.description, data: `/static/data/${m.slug}.json`, oneLayer: !!m.oneLayer, background: m.background || null, dates: m.dates || null, search: !!m.search, leaderboard: m.leaderboard || null, done: m.done || null, components: m.components || null, flow: m.flow || null, route: m.route || null, heatmap: m.heatmap || null, areaDots: !!m.areaDots, streets: m.streets || null, views: m.views || null, insetOutlines: m.insetOutlines || null, infoLinks: m.infoLinks || null, pickOne: m.pickOne || null })};</script>
 <script src="/static/vendor/maplibre-gl/maplibre-gl.js"></script>
 ${m.flow ? '<script src="/static/flow.js"></script>\n' : ''}${m.route ? '<script src="/static/route.js"></script>\n' : ''}${m.streets ? '<script src="/static/streets.js"></script>\n' : ''}<script src="/static/mapgl.js"></script>
 </body>

@@ -132,6 +132,13 @@
       // Pins for Drop/Default markers; plain dots for "Circle" layers and very dense ones.
       l.pins = kinds.has('point') && l.iconClass !== 'Circle' && l.iconClass !== 'Dot' && l.features.length <= 400;
     }
+    // `pickOne` in maps.json (Streets): layer keys listed under a line in the Map key, as radio buttons, so only one shows at a time.
+    const pickOne = new Set(cfg.pickOne || []);
+    const inPick = (l) => pickOne.has(l.key);
+    if (pickOne.size) {
+      const first = data.layers.filter(inPick).reverse().find((l) => l.show) || data.layers.filter(inPick).pop();
+      for (const l of data.layers) if (inPick(l)) l.show = l === first;
+    }
     // One-layer maps (oneLayer in maps.json) show a single layer at a time: the first one switched on.
     if (cfg.oneLayer) {
       const first = data.layers.find((l) => l.show) || data.layers[0];
@@ -608,7 +615,7 @@
     const dateText = () => (datePreset === 'custom' ? (dateFrom ? `${dayLabel(dateFrom)} to ${dayLabel(dateTo)}` : 'Custom range') : datePreset === 'all' ? 'All' : PRESETS.find(([k]) => k === datePreset)[1]);
     const dateMenu = () => `<div class="date-menu">${PRESETS.map(([k, label]) => `<label><input type="radio" name="date-preset" value="${k}"${k === datePreset ? ' checked' : ''}><span>${label}</span></label>`).join('')}${datePreset === 'custom' ? `<div class="date-custom"><label>From <input type="date" data-date-input="from" min="${firstDay()}" max="${lastDay()}" value="${dateFrom || ''}"></label><label>To <input type="date" data-date-input="to" min="${firstDay()}" max="${lastDay()}" value="${dateTo || ''}"></label></div>` : ''}</div>`;
     const dateRow = () => (dates ? `<div class="seg-row"><span>${esc(dates.label || 'Date range')}</span><div class="seg"><button type="button" class="date-btn" data-date-btn aria-expanded="${dateMenuOpen}" aria-pressed="${datePreset !== 'all'}">${esc(dateText())} <span class="caret" aria-hidden="true">▾</span></button></div></div>${dateMenuOpen ? dateMenu() : ''}` : '');
-    const layersHtml = () => `${data.layers.some(listed) ? `<fieldset>${layersHead}${data.layers.map((l, i) => !listed(l) ? '' : `<label><input ${layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span><span class="layer-count" data-count="${i}">${layerCount(l)}</span></label>`).reverse().join('')}</fieldset>` : ''}
+    const layersHtml = () => `${data.layers.some(listed) ? `<fieldset>${layersHead}${data.layers.map((l, i) => !listed(l) ? '' : `${inPick(l) && !inPick(data.layers[i + 1] || {}) ? '<hr class="key-sep">' : ''}<label><input ${inPick(l) ? 'type="radio" name="pick-one"' : layerInput} data-i="${i}"${l.show ? ' checked' : ''}>${swatch(l)}<span>${esc(layerLabel(l))}</span><span class="layer-count" data-count="${i}">${layerCount(l)}</span></label>`).reverse().join('')}</fieldset>` : ''}
 ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-head"><span class="key-head">Filters</span><button type="button" class="reset-btn" data-clear>Reset</button></div>${cfg.search ? `<input type="search" class="search-box" data-search placeholder="Search names, notes, people…" aria-label="Search" value="${esc(searchText)}">` : ''}${done ? `<div class="seg-row"><span>${esc(done.label || done.field)}</span><div class="seg" role="group" aria-label="${esc(done.field)}">${[['all', 'All'], ['completed', 'Yes'], ['planned', 'No']].map(([k, label]) => `<button type="button" data-show="${k}" aria-pressed="${k === showMode}">${label}</button>`).join('')}</div></div>` : ''}${dateRow()}</fieldset>` : ''}`;
     // One row per component: checkbox (show/hide), priority-colour swatch, name (click to zoom), ✓ if done.
     const compRow = (c) => {
@@ -623,9 +630,10 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
     const syncAll = () => {
       const layersAll = keyPanel.querySelector('[data-layers-all]');
       if (layersAll) {
-        const on = data.layers.filter((l) => l.show).length;
-        layersAll.checked = on === data.layers.length;
-        layersAll.indeterminate = on > 0 && on < data.layers.length;
+        const free = data.layers.filter((l) => !inPick(l)); // the select-all box leaves the pick-one layers alone
+        const on = free.filter((l) => l.show).length;
+        layersAll.checked = on === free.length;
+        layersAll.indeterminate = on > 0 && on < free.length;
       }
       const all = keyPanel.querySelector('[data-all]');
       if (!all) return;
@@ -660,7 +668,8 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
     });
     keyPanel.addEventListener('change', (e) => {
       const t = e.target;
-      if (t.dataset.i && cfg.oneLayer) data.layers.forEach((l, i) => setLayer(l, i === +t.dataset.i));
+      if (t.dataset.i && inPick(data.layers[+t.dataset.i])) data.layers.forEach((l, i) => { if (inPick(l)) setLayer(l, i === +t.dataset.i); });
+      else if (t.dataset.i && cfg.oneLayer) data.layers.forEach((l, i) => setLayer(l, i === +t.dataset.i));
       else if (t.dataset.i) { setLayer(data.layers[+t.dataset.i], t.checked); syncAll(); }
       if (t.name === 'date-preset') {
         datePreset = t.value;
@@ -676,8 +685,8 @@ ${done || dates || cfg.search ? `<fieldset class="filters"><div class="filters-h
         refresh(); renderKey();
       }
       if (t.dataset.layersAll !== undefined) {
-        for (const l of data.layers) l.show = t.checked;
-        for (const box of keyPanel.querySelectorAll('[data-i]')) box.checked = t.checked;
+        for (const l of data.layers) if (!inPick(l)) l.show = t.checked;
+        for (const box of keyPanel.querySelectorAll('[data-i]')) if (!inPick(data.layers[+box.dataset.i])) box.checked = t.checked;
         refresh();
       }
       if (t.dataset.comp) { t.checked ? picked.add(t.dataset.comp) : picked.delete(t.dataset.comp); refresh(); syncAll(); }
