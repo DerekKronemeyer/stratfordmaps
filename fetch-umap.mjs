@@ -80,11 +80,19 @@ for (const m of targets) {
   const keyFor = Object.fromEntries(Object.entries(m.layers || {}).map(([key, uuid]) => [uuid, key]));
   const usedKeys = new Set();
   const layers = [], dataOnly = [];
+  // `fieldLayers` in maps.json: site layers made from one uMap layer (`from`), each feature coloured by a field's value
+  // (`field`, `values`: {value: [colour, weight]}). A uMap layer with the same name is left out, so the old copy can go.
+  const fieldLayers = m.fieldLayers || [];
+  const made = new Set(fieldLayers.map((f) => f.name));
+  const src = {}, srcAt = {}; // features and site position of each fetched layer
   // `skipLayers` in maps.json names uMap layers to leave off the site (kept in uMap for reference).
   // `dataOnlyLayers` are fetched into the data file under `dataOnly` but not drawn on the site (Navigation reads them).
   for (const dl of map.datalayers) {
-    if ((m.skipLayers || []).includes(dl.properties?.name ?? dl.name)) continue;
+    const dlName = dl.properties?.name ?? dl.name;
+    if ((m.skipLayers || []).includes(dlName) || made.has(dlName)) continue;
     const fc = await getJson(`${UMAP_URL}/en/datalayer/${id}/${dl.id}/`);
+    src[dlName] = { features: fc.features.map(flattenFeature), fields: (fc._umap_options?.fields || dl.properties?.fields || []).map((f) => f.key) };
+    srcAt[dlName] = layers.length;
     if ((m.dataOnlyLayers || []).includes(dl.properties?.name ?? dl.name)) { dataOnly.push({ name: dl.properties?.name ?? dl.name, features: fc.features.map(flattenFeature) }); continue; }
     const o = { ...(dl.properties || {}), ...(fc._umap_options || {}) };
     // `split` (Housing Density): this one uMap layer becomes several site layers by a number field.
@@ -114,6 +122,19 @@ for (const m of targets) {
       fields: (o.fields || []).map((f) => f.key),
       features: fc.features.map(flattenFeature),
     });
+  }
+  for (const fl of [...fieldLayers].reverse()) {
+    const from = src[fl.from];
+    if (!from) throw new Error(`${m.slug}: fieldLayers ${fl.name}: no uMap layer named ${fl.from}`);
+    const vals = Object.fromEntries(Object.entries(fl.values || {}).map(([k, v]) => [k.toLowerCase(), v]));
+    const features = from.features.map((f) => {
+      const [color, weight] = vals[String(f.properties[fl.field]).toLowerCase()] || [];
+      const { _color, _weight, ...props } = f.properties;
+      return { ...f, properties: { ...props, ...(color ? { _color: color } : {}), ...(weight ? { _weight: weight } : {}) } };
+    });
+    layers.splice(srcAt[fl.from], 0, { key: fl.key || slugify(fl.name), name: fl.name, color: fl.color, weight: fl.weight ?? 3, opacity: 1, fillColor: null, fillOpacity: 0.3,
+      iconClass: null, iconUrl: null, show: !!fl.show, showLabel: false, fields: from.fields, features });
+    usedKeys.add(fl.key || slugify(fl.name));
   }
   for (const layer of layers) for (const f of layer.features) await localizePhotos(f.properties);
 

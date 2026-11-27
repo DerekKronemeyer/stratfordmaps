@@ -77,11 +77,21 @@
    "slug": "streets",
    "title": "Streets",
    "category": "transportation",
-   "description": "Every street in town by type, paving and name suffix, plus roundabouts and traffic lights.",
+   "description": "Every street in town by type, paving and name suffix, plus service roads, roundabouts and traffic lights.",
    "source": "umap",
    "umap": "streets_4",
-   "layerColors": { "All Streets": "#0288D1" },
-   "dataOnlyLayers": ["New service roads"],
+   "dataOnlyLayers": ["Roads", "New service roads"],
+   "fieldLayers": [
+    { "name": "All Streets", "key": "all-streets", "from": "Roads", "color": "#0288D1", "weight": 5.5, "show": true },
+    { "name": "Street Type", "key": "street-type", "from": "Roads", "field": "Type", "color": "#558B2F", "weight": 5.3,
+      "values": { "Private": ["#F57C00", 5.7], "Commercial": ["#673AB7", 6], "Arterial": ["#BDBDBD", 6.8], "Highway": ["#757575", 7] } },
+    { "name": "Paved", "key": "paved", "from": "Roads", "field": "Paved", "color": "#558B2F", "weight": 6.2, "values": { "false": ["#E65100", 5.8] } },
+    { "name": "Suffix", "key": "suffix", "from": "Roads", "field": "Suffix", "color": "#4E342E", "weight": 5.1,
+      "values": { "Court": ["#F9A825", 5.1], "Road": ["#0288D1", 7], "Crescent": ["#558B2F", 7.2], "Lane": ["#006064", 4.9], "Avenue": ["#F57C00", 6.4], "Close": ["#795548", 6.4],
+        "Heights": ["#FFD600", 6.4], "Way": ["#01579B", 6.2], "Terrace": ["#0F9D58", 6.6], "Landing": ["#673AB7", 6.2], "Street": ["#097138", 6.4], "Row": ["#C2185B", 6.6],
+        "Boulevard": ["#0097A7", 7.4], "Place": ["#FBC02D", 6], "Highway": ["#9C27B0", 7], "Gate": ["#817717", 5.5] } },
+    { "name": "Service Roads", "key": "service-roads", "from": "New service roads", "color": "#FF69B4", "weight": 3 }
+   ],
    "thumb": "/static/thumbs/streets.jpg"
   },
   {
