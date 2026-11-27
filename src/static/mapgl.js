@@ -103,6 +103,8 @@
   };
 
   fetch(cfg.data).then((r) => r.json()).then((data) => {
+    // Drop empty shapes (a stray click with uMap's line tool saves one), so they can't change a layer's Map key sample.
+    for (const l of data.layers) l.features = l.features.filter((f) => f.geometry && allCoords(f.geometry.coordinates).length);
     // `insetOutlines`: which side of each area's outline is inside (from the outer ring's winding), for line-offset.
     // Set here, before the features go to the map, which copies them when the source is added.
     for (const l of data.layers) if ((cfg.insetOutlines || []).includes(l.name)) for (const f of l.features) {
