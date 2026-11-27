@@ -40,6 +40,7 @@
    "description": "Walking routes, groomed winter trails, low-tide hikes and the best walks in Stratford, plus navigation.",
    "source": "umap",
    "umap": "walking_2",
+   "skipLayers": ["Roads (reference)"],
    "infoLinks": [{ "href": "/walking/network", "text": "Curious how Navigation sees the paths and roads? Have a look at the walking network." }],
    "layers": {
     "routes": "9cd20f4d-1dbd-491e-94ab-3be837a3a263",
