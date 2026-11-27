@@ -6,9 +6,9 @@
 # The rules are general (Derek: no one-off fixes for particular streets; it should work for any town's data).
 # Reads src/static/data/walking.json and streets.json (from `node fetch-umap.mjs`), writes src/static/data/walking-network.json.
 # Runs in elsa's nightly stratfordmaps-sync after the uMap fetch, and only rebuilds when its inputs or this script changed
-# (their fingerprint is stored in the output as "src"). `--force` rebuilds anyway; `--review DIR` also writes review GeoJSON.
+# (their fingerprint is stored in the output as "src"). `--force` rebuilds anyway;
 # Local: python jobs/walking_network/build.py
-import json, math, collections, hashlib, heapq, sys
+import json, math, collections, hashlib, sys
 from pathlib import Path
 import shapely
 from shapely.geometry import shape, Point, LineString, Polygon
@@ -18,7 +18,6 @@ from shapely.strtree import STRtree
 HERE = Path(__file__).resolve().parent
 SITE = HERE.parents[1] / 'src' / 'static' / 'data'
 OUT = SITE / 'walking-network.json'
-REVIEW = Path(sys.argv[sys.argv.index('--review') + 1]) if '--review' in sys.argv else None
 
 # Local metres (equirectangular around Stratford; error well under 1% across the town).
 LAT0 = 46.22
@@ -105,9 +104,6 @@ CROSSWALK_NEAR_M = 25     # no crossing of a street the build adds within this o
 CROSSWALK_MIN_DEG = 30    # a route end crossing a road centreline this steeply (and mid-road) is a crosswalk drawn short...
 DEAD_END_ZONE_M = 10      # ...but one meeting a road this close to its dead end is a trail leading into the end of the road
 FAR_DEDUPE_M = 10         # paths meeting a street from both sides within this get one crossing between them
-# Review page
-GAP_REVIEW_M = 30         # walking route ends with another route 5-30 m away are listed
-ROAD_END_REVIEW_M = 30    # road ends that stop this close to another road without meeting it are listed
 
 # Flags per network piece
 INFRA, BUSYF, CROSS, CROSS_OK, NOGO, XBUSY, UNDER, WALK, FULL, ENTR, SVC, TIDE, PRIV = 1, 2, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192
@@ -402,7 +398,6 @@ arm_ends = collections.defaultdict(list)
 for x in segs:
     arm_ends[x['j0']].append((x, 0)); arm_ends[x['j1']].append((x, 1))
 junction_links = []  # {geom, flags, name} or {geom: None, to_route}
-cross_review = []
 
 
 def landing(p, nx, ny, reach):
@@ -508,8 +503,6 @@ for jn, arms in arm_ends.items():
         at_busy = any(o['busy'] for o in others)
         flags = (CROSS | XBUSY | BUSYF | FULL | (NOGO if x['highway'] else 0)) if x['busy'] else (CROSS | FULL | (BUSYF if at_busy else 0) | (SVC if x['L']['service'] else 0))
         junction_links.append({'geom': LineString([hits[0][3], hits[1][3]]), 'flags': flags, 'name': x['L']['name']})
-        if x['busy']:
-            cross_review.append({'at': p, 'road': x['L']['name'], 'via': 'street', 'busy': True, 'crosswalk': False, 'blocked': x['highway'], 'route': None})
 
 # A road edge that stops where a sidewalk takes over steps onto that sidewalk.
 for e in loose_ends:
@@ -534,7 +527,7 @@ busy_tree = STRtree(busy_roads)
 rcut = collections.defaultdict(list)   # route index -> distances to cut at
 far_done = []                          # both ends of each crossing made where a path meets a street
 crossings = []                         # (route index, distance along it, road dict, point)
-links, gaps = [], []
+links = []
 for i, R in enumerate(routes):
     p = R['geom']
     for j in route_tree.query(p):
@@ -589,12 +582,6 @@ for i, R in enumerate(routes):
                 far_done += [q0, side_geoms[k].interpolate(dk)]
                 fl = (CROSS | XBUSY | BUSYF | ENTR) if S0['busy'] else (CROSS | FULL | (SVC if S0['L']['service'] else 0))
                 links.append({'geom': LineString([q0, side_geoms[k].interpolate(dk)]), 'flags': fl, 'name': S0['L']['name']})
-        near = [(route_geoms[j].distance(end), j) for j in route_tree.query(end.buffer(GAP_REVIEW_M)) if j != i]
-        near = [c for c in near if c[0] < GAP_REVIEW_M]
-        if near:
-            d, j = min(near)
-            q = route_geoms[j].interpolate(route_geoms[j].project(end))
-            gaps.append({'at': end, 'to': q, 'gap_m': round(d, 1), 'joined_to_road': bool(sc), 'route': R['id']})
 for jl in junction_links:
     if 'to_route' in jl:
         rcut[jl['to_route'][0]].append(jl['to_route'][1])
@@ -608,7 +595,6 @@ for i, d, road, q in crossings:
     lo, hi = max(0, d - half), min(g.length, d + half)
     cross_spans[i].append((lo, hi, busy, road['name'], routes[i]['grade']))  # a grade-separated route goes under/over (field on the route, Derek 2026-11-26)
     rcut[i] += [lo, hi]
-    cross_review.append({'at': q, 'road': road['name'], 'via': 'walking route', 'busy': busy, 'crosswalk': True, 'blocked': False, 'route': routes[i]['id']})
 
 # ---- split into pieces and tag them -----------------------------------------------------------------------------------
 
@@ -632,7 +618,6 @@ def is_sidewalk(seg):
 names = ['']
 name_ix = lambda n: names.index(n) if n in names else (names.append(n) or len(names) - 1)
 pieces = []  # [flags, name, LineString]
-beside_review = collections.defaultdict(float)
 
 for i, R in enumerate(routes):
     g = R['geom']
@@ -670,7 +655,6 @@ for i, R in enumerate(routes):
                 flags |= BUSYF
                 if bb != 'override':
                     nm = bb
-                    beside_review[R['id']] += seg.length
             if run_flags is None:
                 run_flags, run_name = flags, nm
             elif (flags, nm) != (run_flags, run_name):
@@ -779,7 +763,7 @@ while True:
 print(f'left out {scraps} short road-edge scraps that only touch sidewalks')
 
 # The inside edge of a big cul-de-sac loop is a ring of road edge that reaches nothing: left out, or a pin could snap there
-# and find no way out. Other cut-off pieces stay (Meadowview), so they show up in the review.
+# and find no way out. Other cut-off pieces stay (Meadowview), so they can be found and fixed.
 owner = list(range(len(nodes)))
 def root(x):
     while owner[x] != x:
@@ -801,30 +785,6 @@ if drop:
 OUT.write_text(json.dumps({'v': 1, 'src': fingerprint, 'flags': {'infra': INFRA, 'busy': BUSYF, 'cross': CROSS, 'crossOk': CROSS_OK, 'nogo': NOGO, 'crossBusy': XBUSY, 'under': UNDER, 'sidewalk': WALK, 'full': FULL, 'entr': ENTR, 'service': SVC, 'lowtide': TIDE, 'private': PRIV},
                            'names': names, 'highways': sorted({L['name'] for L in roads if L['highway']}), 'nodes': nodes, 'edges': edges, 'roadLines': road_lines}, separators=(',', ':')), encoding='utf-8')
 
-# A gap is only real if the network can't get from the dead end to the nearby route without a detour (e.g. route-043 at
-# Barkley Avenue runs along its own "gap" to the fork: not a gap). Keep it if no path within 2 x gap + 20 m reaches it.
-gadj = collections.defaultdict(list)
-for k, (a, b, *_rest) in enumerate(edges):
-    gadj[a].append((b, k)); gadj[b].append((a, k))
-def reaches(end, to, limit):
-    start = node((end.x, end.y))
-    if start is None:
-        return False
-    dist, todo = {start: 0.0}, [(0.0, start)]
-    while todo:
-        d, n = heapq.heappop(todo)
-        if d > dist.get(n, 1e18) or d > limit:
-            continue
-        for m, k in gadj[n]:
-            if edge_geoms[k].distance(to) < 1:
-                return True
-            nd = d + edges[k][4]
-            if nd < dist.get(m, 1e18):
-                dist[m] = nd; heapq.heappush(todo, (nd, m))
-    return False
-before = len(gaps)
-gaps = [g for g in gaps if not reaches(g['at'], g['to'], 2 * g['gap_m'] + 20)]
-print(f'gap check: {before} candidates, {before - len(gaps)} already connected nearby, {len(gaps)} listed')
 
 # connectivity
 adj = collections.defaultdict(set)
@@ -843,43 +803,7 @@ for n in adj:
     comps.append(size)
 comps.sort(reverse=True)
 
-# ---- review files (GeoJSON, lng/lat), for the sandbox review page -------------------------------------------------
-if REVIEW:
-    REVIEW.mkdir(parents=True, exist_ok=True)
-    ll = lambda g: [to_ll(*c) for c in g.coords]
-    pt = lambda p: to_ll(p.x, p.y)
-    fc = lambda feats: {'type': 'FeatureCollection', 'features': feats}
-    json.dump(fc([{'type': 'Feature', 'properties': {'flags': e[2], 'name': names[e[3]], 'len': e[4]}, 'geometry': {'type': 'LineString', 'coordinates': ll(g)}} for e, g in zip(edges, edge_geoms)]),  # the final network, as route.js gets it
-              open(REVIEW / 'network.geojson', 'w'), separators=(',', ':'))
-    json.dump(fc([{'type': 'Feature', 'properties': {'gap_m': g['gap_m'], 'joined_to_road': g['joined_to_road'], 'route': g['route']},
-                   'geometry': {'type': 'LineString', 'coordinates': [pt(g['at']), pt(g['to'])]}} for g in gaps]),
-              open(REVIEW / 'gaps.geojson', 'w'))
-    json.dump(fc([{'type': 'Feature', 'properties': {k: v for k, v in c.items() if k != 'at'}, 'geometry': {'type': 'Point', 'coordinates': pt(c['at'])}} for c in cross_review]),
-              open(REVIEW / 'crossings.geojson', 'w'))
-    # Road ends that stop short of another road (after the build's own JOIN_ROADROAD_M joins): a line from the end to the
-    # nearest road, ROAD_END_REVIEW_M at most. Many are real dead ends (a parking aisle that just stops); some are misses.
-    rtree_all = STRtree([L['geom'] for L in roads])
-    road_ends = []
-    for L in roads:
-        for at in (0, -1):
-            e = Point(L['geom'].coords[at])
-            near = [(roads[j]['geom'].distance(e), j) for j in rtree_all.query(e.buffer(ROAD_END_REVIEW_M)) if roads[j] is not L]
-            near = [c for c in near if c[0] <= ROAD_END_REVIEW_M]
-            if not near:
-                continue
-            d, j = min(near)
-            if d > 0.3:
-                q = roads[j]['geom'].interpolate(roads[j]['geom'].project(e))
-                road_ends.append({'type': 'Feature', 'properties': {'road': L['name'], 'service': bool(L.get('service')), 'short_m': round(d, 1), 'to': roads[j]['name']},
-                                  'geometry': {'type': 'LineString', 'coordinates': [pt(e), pt(q)]}})
-    json.dump(fc(road_ends), open(REVIEW / 'road_ends.geojson', 'w'))
-    print(f'road ends short of another road (0.3-{ROAD_END_REVIEW_M} m): {len(road_ends)}, {sum(f["properties"]["service"] for f in road_ends)} of them service lanes')
-
 total = lambda f: sum(g.length for fl, _, g in pieces if f(fl)) / 1000
 print(f'{len(nodes)} nodes, {len(edges)} edges, {OUT.stat().st_size / 1e3:.0f} KB; network pieces {comps[:5]} (+{len(comps) - 5} small)')
 print(f'km: walking infra {total(lambda f: f & INFRA):.1f}, roads {total(lambda f: not f & INFRA):.1f}, busy (on or beside) {total(lambda f: f & BUSYF):.1f}, walking routes that are sidewalks {total(lambda f: f & WALK):.1f} (rest are trails)')
-print(f'route km beside busy roads: {sum(beside_review.values()) / 1000:.1f} on {len(beside_review)} routes')
-print(f'gaps 5-{GAP_REVIEW_M} m: {len(gaps)} ({sum(not g["joined_to_road"] for g in gaps)} not joined to a road either)')
-bc = [c for c in cross_review if c['busy']]; qc = [c for c in cross_review if not c['busy']]
-print(f'busy-road crossings: {len(bc)}; at crosswalks {sum(c["crosswalk"] for c in bc)}; highway blocked {sum(c["blocked"] for c in bc)}')
-print(f'quiet-road crossings by walking routes: {len(qc)}; side lines {len(side_lines)} ({sum(x["geom"].length for x in side_lines) / 1000:.1f} km); junction + crossing links {len(junction_links)}')
+print(f'side lines {len(side_lines)} ({sum(x["geom"].length for x in side_lines) / 1000:.1f} km); junction + crossing links {len(junction_links)}')
